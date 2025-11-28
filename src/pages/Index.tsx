@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,14 +29,40 @@ const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const YEARS = [2024, 2025, 2026, 2027];
 
 const Index = () => {
-  const [year, setYear] = useState(2025);
-  const [monthIndex, setMonthIndex] = useState(4); // May = index 4
-  const [habits, setHabits] = useState(() => 
-    INITIAL_HABITS.map(habit => ({
+  const [year, setYear] = useState(() => {
+    const saved = localStorage.getItem('habitTrackerYear');
+    return saved ? parseInt(saved) : 2025;
+  });
+  
+  const [monthIndex, setMonthIndex] = useState(() => {
+    const saved = localStorage.getItem('habitTrackerMonth');
+    return saved ? parseInt(saved) : 4; // May = index 4
+  });
+  
+  const [habits, setHabits] = useState(() => {
+    const saved = localStorage.getItem('habitTrackerData');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return INITIAL_HABITS.map(habit => ({
       ...habit,
       days: Array(31).fill(false)
-    }))
-  );
+    }));
+  });
+
+  // Save to localStorage whenever habits change
+  useEffect(() => {
+    localStorage.setItem('habitTrackerData', JSON.stringify(habits));
+  }, [habits]);
+
+  // Save year and month to localStorage
+  useEffect(() => {
+    localStorage.setItem('habitTrackerYear', year.toString());
+  }, [year]);
+
+  useEffect(() => {
+    localStorage.setItem('habitTrackerMonth', monthIndex.toString());
+  }, [monthIndex]);
 
   const daysInMonth = useMemo(() => {
     const days = DAYS_IN_MONTH[monthIndex];
