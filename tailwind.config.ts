@@ -57,6 +57,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        week: {
+          1: "hsl(var(--week-1))",
+          2: "hsl(var(--week-2))",
+          3: "hsl(var(--week-3))",
+          4: "hsl(var(--week-4))",
+          5: "hsl(var(--week-5))",
+        },
+        progress: {
+          bg: "hsl(var(--progress-bg))",
+          fill: "hsl(var(--progress-fill))",
+        },
+        chart: {
+          line: "hsl(var(--chart-line))",
+          area: "hsl(var(--chart-area))",
+          grid: "hsl(var(--chart-grid))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
