@@ -2,6 +2,11 @@ import { useState, useMemo, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Trash2 } from "lucide-react";
 
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
@@ -52,6 +57,8 @@ const Index = () => {
 
   const [editingHabitId, setEditingHabitId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newHabitName, setNewHabitName] = useState("");
 
   // Save to localStorage whenever habits change
   useEffect(() => {
@@ -104,6 +111,24 @@ const Index = () => {
       setEditingHabitId(null);
       setEditingName("");
     }
+  };
+
+  const addNewHabit = () => {
+    if (newHabitName.trim()) {
+      const newId = Math.max(...habits.map(h => h.id)) + 1;
+      setHabits(prev => [...prev, {
+        id: newId,
+        name: newHabitName.trim(),
+        goal: daysInMonth,
+        days: Array(31).fill(false)
+      }]);
+      setNewHabitName("");
+      setIsDialogOpen(false);
+    }
+  };
+
+  const deleteHabit = (habitId: number) => {
+    setHabits(prev => prev.filter(habit => habit.id !== habitId));
   };
 
   // Calculate daily completion percentage
@@ -282,11 +307,43 @@ const Index = () => {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
           {/* Main Habit Grid */}
           <div className="xl:col-span-3 border-2 border-border bg-card overflow-x-auto">
+            <div className="p-4 border-b border-border">
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <Plus size={16} />
+                    Add New Habit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Habit</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="habit-name">Habit Name</Label>
+                      <Input
+                        id="habit-name"
+                        value={newHabitName}
+                        onChange={(e) => setNewHabitName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && addNewHabit()}
+                        placeholder="Enter habit name..."
+                        autoFocus
+                      />
+                    </div>
+                    <Button onClick={addNewHabit} className="w-full">
+                      Add Habit
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="bg-secondary">
                   <th className="border border-border p-1 sticky left-0 bg-secondary z-10 w-12">#</th>
                   <th className="border border-border p-2 text-left sticky left-12 bg-secondary z-10 min-w-[200px]">DAILY HABITS</th>
+                  <th className="border border-border p-1 sticky left-[248px] bg-secondary z-10 w-12"></th>
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const weekIdx = Math.floor(i / 7);
                     const weekColor = weeklyStats[weekIdx]?.color || "week-1";
@@ -323,6 +380,17 @@ const Index = () => {
                           {habit.name}
                         </span>
                       )}
+                    </td>
+                    <td className="border border-border p-1 text-center sticky left-[248px] bg-card">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteHabit(habit.id)}
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        title="Delete habit"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
                     </td>
                     {Array.from({ length: daysInMonth }).map((_, dayIdx) => {
                       const weekIdx = Math.floor(dayIdx / 7);
