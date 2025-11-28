@@ -50,6 +50,9 @@ const Index = () => {
     }));
   });
 
+  const [editingHabitId, setEditingHabitId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
+
   // Save to localStorage whenever habits change
   useEffect(() => {
     localStorage.setItem('habitTrackerData', JSON.stringify(habits));
@@ -75,6 +78,32 @@ const Index = () => {
         ? { ...habit, days: habit.days.map((checked, i) => i === dayIndex ? !checked : checked) }
         : habit
     ));
+  };
+
+  const startEditingHabit = (habitId: number, currentName: string) => {
+    setEditingHabitId(habitId);
+    setEditingName(currentName);
+  };
+
+  const saveHabitName = () => {
+    if (editingHabitId !== null && editingName.trim()) {
+      setHabits(prev => prev.map(habit =>
+        habit.id === editingHabitId
+          ? { ...habit, name: editingName.trim() }
+          : habit
+      ));
+    }
+    setEditingHabitId(null);
+    setEditingName("");
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveHabitName();
+    } else if (e.key === 'Escape') {
+      setEditingHabitId(null);
+      setEditingName("");
+    }
   };
 
   // Calculate daily completion percentage
@@ -274,7 +303,27 @@ const Index = () => {
                 {habitProgress.map((habit, hIdx) => (
                   <tr key={habit.id} className="hover:bg-muted/50">
                     <td className="border border-border p-1 text-center sticky left-0 bg-card w-12">{hIdx + 1}</td>
-                    <td className="border border-border p-2 sticky left-12 bg-card">{habit.name}</td>
+                    <td className="border border-border p-2 sticky left-12 bg-card">
+                      {editingHabitId === habit.id ? (
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onBlur={saveHabitName}
+                          onKeyDown={handleNameKeyDown}
+                          className="w-full bg-background border border-border px-1 text-xs"
+                          autoFocus
+                        />
+                      ) : (
+                        <span
+                          onDoubleClick={() => startEditingHabit(habit.id, habit.name)}
+                          className="cursor-pointer hover:text-primary"
+                          title="Double-click to edit"
+                        >
+                          {habit.name}
+                        </span>
+                      )}
+                    </td>
                     {Array.from({ length: daysInMonth }).map((_, dayIdx) => {
                       const weekIdx = Math.floor(dayIdx / 7);
                       const weekColor = weeklyStats[weekIdx]?.color || "week-1";
