@@ -258,7 +258,6 @@ const Index = () => {
                 <tr className="bg-secondary">
                   <th className="border border-border p-1 sticky left-0 bg-secondary z-10">#</th>
                   <th className="border border-border p-2 text-left sticky left-8 bg-secondary z-10 min-w-[200px]">DAILY HABITS</th>
-                  <th className="border border-border p-1 sticky left-[280px] bg-secondary z-10">GOALS</th>
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const weekIdx = Math.floor(i / 7);
                     const weekColor = weeklyStats[weekIdx]?.color || "week-1";
@@ -276,7 +275,6 @@ const Index = () => {
                   <tr key={habit.id} className="hover:bg-muted/50">
                     <td className="border border-border p-1 text-center sticky left-0 bg-card">{hIdx + 1}</td>
                     <td className="border border-border p-2 sticky left-8 bg-card">{habit.name}</td>
-                    <td className="border border-border p-1 text-center sticky left-[280px] bg-card">{habit.goal}</td>
                     {Array.from({ length: daysInMonth }).map((_, dayIdx) => {
                       const weekIdx = Math.floor(dayIdx / 7);
                       const weekColor = weeklyStats[weekIdx]?.color || "week-1";
