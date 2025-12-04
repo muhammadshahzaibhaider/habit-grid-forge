@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2 } from "lucide-react";
-
+import { Plus, Trash2, Calendar } from "lucide-react";
+import { DayScheduler, ScheduleEvent } from "@/components/DayScheduler";
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -40,6 +40,10 @@ interface MonthlyData {
     goal: number;
     days: boolean[];
   }>;
+}
+
+interface ScheduleData {
+  [key: string]: { [day: number]: ScheduleEvent[] };
 }
 
 const getMonthKey = (year: number, month: number) => `${year}-${month}`;
@@ -92,11 +96,35 @@ const Index = () => {
   const [editingName, setEditingName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newHabitName, setNewHabitName] = useState("");
+  
+  // Schedule events state
+  const [allScheduleData, setAllScheduleData] = useState<ScheduleData>(() => {
+    const saved = localStorage.getItem('habitTrackerSchedule');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState<number | null>(null);
+  
+  const scheduleEvents = allScheduleData[monthKey] || {};
+  
+  const setScheduleEventsForDay = (day: number, events: ScheduleEvent[]) => {
+    setAllScheduleData(prev => ({
+      ...prev,
+      [monthKey]: {
+        ...(prev[monthKey] || {}),
+        [day]: events
+      }
+    }));
+  };
 
   // Save all monthly data to localStorage
   useEffect(() => {
     localStorage.setItem('habitTrackerMonthlyData', JSON.stringify(allMonthlyData));
   }, [allMonthlyData]);
+  
+  // Save schedule data to localStorage
+  useEffect(() => {
+    localStorage.setItem('habitTrackerSchedule', JSON.stringify(allScheduleData));
+  }, [allScheduleData]);
 
   // Save year and month to localStorage
   useEffect(() => {
@@ -305,10 +333,21 @@ const Index = () => {
                   if (dayNum > daysInMonth) return <div key={i} />;
                   const date = new Date(year, monthIndex, dayNum);
                   const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+                  const hasEvents = (scheduleEvents[dayNum] || []).length > 0;
                   return (
-                    <div key={i}>
+                    <div 
+                      key={i} 
+                      onClick={() => setSelectedScheduleDay(dayNum)}
+                      className="cursor-pointer hover:bg-background/30 rounded p-0.5 transition-colors"
+                      title="Click to schedule"
+                    >
                       <div className="font-semibold">{dayName.slice(0, 3)}</div>
-                      <div>{dayNum}</div>
+                      <div className="relative">
+                        {dayNum}
+                        {hasEvents && (
+                          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary rounded-full" />
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -506,6 +545,19 @@ const Index = () => {
           </div>
         </div>
       </div>
+      
+      {/* Day Scheduler Dialog */}
+      <DayScheduler
+        isOpen={selectedScheduleDay !== null}
+        onClose={() => setSelectedScheduleDay(null)}
+        date={new Date(year, monthIndex, selectedScheduleDay || 1)}
+        events={scheduleEvents[selectedScheduleDay || 1] || []}
+        onEventsChange={(events) => {
+          if (selectedScheduleDay) {
+            setScheduleEventsForDay(selectedScheduleDay, events);
+          }
+        }}
+      />
     </div>
   );
 };
