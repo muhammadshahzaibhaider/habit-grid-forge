@@ -33,6 +33,22 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const YEARS = [2024, 2025, 2026, 2027];
 
+interface MonthlyData {
+  [key: string]: Array<{
+    id: number;
+    name: string;
+    goal: number;
+    days: boolean[];
+  }>;
+}
+
+const getMonthKey = (year: number, month: number) => `${year}-${month}`;
+
+const getDefaultHabits = () => INITIAL_HABITS.map(habit => ({
+  ...habit,
+  days: Array(31).fill(false)
+}));
+
 const Index = () => {
   const [year, setYear] = useState(() => {
     const saved = localStorage.getItem('habitTrackerYear');
@@ -43,27 +59,44 @@ const Index = () => {
     const saved = localStorage.getItem('habitTrackerMonth');
     return saved ? parseInt(saved) : 4; // May = index 4
   });
+
+  const monthKey = getMonthKey(year, monthIndex);
   
-  const [habits, setHabits] = useState(() => {
-    const saved = localStorage.getItem('habitTrackerData');
+  // Load all monthly data from localStorage
+  const [allMonthlyData, setAllMonthlyData] = useState<MonthlyData>(() => {
+    const saved = localStorage.getItem('habitTrackerMonthlyData');
     if (saved) {
       return JSON.parse(saved);
     }
-    return INITIAL_HABITS.map(habit => ({
-      ...habit,
-      days: Array(31).fill(false)
-    }));
+    // Migrate old data if exists
+    const oldData = localStorage.getItem('habitTrackerData');
+    if (oldData) {
+      const oldYear = localStorage.getItem('habitTrackerYear') || '2025';
+      const oldMonth = localStorage.getItem('habitTrackerMonth') || '4';
+      return { [getMonthKey(parseInt(oldYear), parseInt(oldMonth))]: JSON.parse(oldData) };
+    }
+    return {};
   });
+
+  // Get habits for current month
+  const habits = allMonthlyData[monthKey] || getDefaultHabits();
+
+  const setHabits = (updater: (prev: typeof habits) => typeof habits) => {
+    setAllMonthlyData(prev => ({
+      ...prev,
+      [monthKey]: typeof updater === 'function' ? updater(prev[monthKey] || getDefaultHabits()) : updater
+    }));
+  };
 
   const [editingHabitId, setEditingHabitId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newHabitName, setNewHabitName] = useState("");
 
-  // Save to localStorage whenever habits change
+  // Save all monthly data to localStorage
   useEffect(() => {
-    localStorage.setItem('habitTrackerData', JSON.stringify(habits));
-  }, [habits]);
+    localStorage.setItem('habitTrackerMonthlyData', JSON.stringify(allMonthlyData));
+  }, [allMonthlyData]);
 
   // Save year and month to localStorage
   useEffect(() => {
