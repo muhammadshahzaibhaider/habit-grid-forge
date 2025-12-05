@@ -1,38 +1,74 @@
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Palette, Waves, Sunset, Flower2, Zap, TreePine } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+
+const themes = [
+  { id: "light", name: "Light", icon: Sun, color: "hsl(145, 60%, 45%)" },
+  { id: "dark", name: "Dark", icon: Moon, color: "hsl(145, 70%, 50%)" },
+  { id: "ocean", name: "Ocean", icon: Waves, color: "hsl(190, 80%, 50%)" },
+  { id: "sunset", name: "Sunset", icon: Sunset, color: "hsl(25, 90%, 55%)" },
+  { id: "lavender", name: "Lavender", icon: Flower2, color: "hsl(280, 70%, 60%)" },
+  { id: "cyberpunk", name: "Cyberpunk", icon: Zap, color: "hsl(320, 100%, 55%)" },
+  { id: "forest", name: "Forest", icon: TreePine, color: "hsl(100, 60%, 45%)" },
+];
 
 export const ThemeToggle = () => {
-  const [isDark, setIsDark] = useState(() => {
+  const [theme, setTheme] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("theme");
-      if (saved) return saved === "dark";
-      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (saved && themes.find(t => t.id === saved)) return saved;
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
-    return false;
+    return "light";
   });
 
   useEffect(() => {
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+    // Remove all theme classes
+    themes.forEach(t => root.classList.remove(t.id));
+    // Add current theme class (light doesn't need a class as it's the :root default)
+    if (theme !== "light") {
+      root.classList.add(theme);
     }
-  }, [isDark]);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const currentTheme = themes.find(t => t.id === theme) || themes[0];
+  const IconComponent = currentTheme.icon;
 
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={() => setIsDark(!isDark)}
-      className="relative overflow-hidden bg-background/80 backdrop-blur-sm border-border/50 hover:bg-accent transition-all duration-300"
-    >
-      <Sun className={`h-5 w-5 transition-all duration-500 ${isDark ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"}`} />
-      <Moon className={`absolute h-5 w-5 transition-all duration-500 ${isDark ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"}`} />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative overflow-hidden bg-background/80 backdrop-blur-sm border-border/50 hover:bg-accent transition-all duration-300"
+        >
+          <IconComponent className="h-5 w-5" style={{ color: currentTheme.color }} />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="glass-card">
+        {themes.map((t) => {
+          const Icon = t.icon;
+          return (
+            <DropdownMenuItem
+              key={t.id}
+              onClick={() => setTheme(t.id)}
+              className={`flex items-center gap-2 cursor-pointer ${theme === t.id ? "bg-accent" : ""}`}
+            >
+              <Icon className="h-4 w-4" style={{ color: t.color }} />
+              <span>{t.name}</span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
