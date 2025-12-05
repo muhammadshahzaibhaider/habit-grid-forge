@@ -77,6 +77,9 @@ interface AIChatDialogProps {
   onRescheduleEvents?: (changes: RescheduleChange[]) => void;
   onDeleteEvents?: (deletions: DeletionItem[]) => void;
   existingEvents?: { [day: number]: ExistingEvent[] };
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -85,9 +88,21 @@ export const AIChatDialog = ({
   onAddSchedule, 
   onRescheduleEvents, 
   onDeleteEvents,
-  existingEvents = {}
+  existingEvents = {},
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true
 }: AIChatDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = (value: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -277,12 +292,14 @@ export const AIChatDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <MessageSquare size={16} />
-          Chat with AI
-        </Button>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <MessageSquare size={16} />
+            Chat with AI
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[600px] h-[700px] flex flex-col p-0">
         <DialogHeader className="p-4 border-b">
           <DialogTitle className="flex items-center gap-2">
