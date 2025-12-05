@@ -310,7 +310,26 @@ const Index = () => {
 
           <div className="border-2 border-border bg-secondary p-4 flex items-center justify-between">
             <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
-            <AIChatDialog />
+            <AIChatDialog onAddSchedule={(events) => {
+              const EVENT_COLORS = [
+                "hsl(var(--week-1))",
+                "hsl(var(--week-2))",
+                "hsl(var(--week-3))",
+                "hsl(var(--week-4))",
+                "hsl(var(--week-5))",
+              ];
+              events.forEach((event, idx) => {
+                const existingEvents = scheduleEvents[event.day] || [];
+                const newEvent = {
+                  id: Date.now() + idx,
+                  title: event.title,
+                  startTime: event.startTime,
+                  endTime: event.endTime,
+                  color: EVENT_COLORS[idx % EVENT_COLORS.length],
+                };
+                setScheduleEventsForDay(event.day, [...existingEvents, newEvent]);
+              });
+            }} />
           </div>
         </div>
 
