@@ -70,10 +70,10 @@ export const Notepad = () => {
   };
 
   return (
-    <div className="border-2 border-border bg-card p-4 space-y-3">
+    <div className="glass-card rounded-lg p-4 space-y-3 hover-lift transition-all duration-300">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-sm">NOTEPAD</h3>
-        <Button size="sm" variant="outline" onClick={createNewNote} className="gap-1 h-7">
+        <Button size="sm" variant="outline" onClick={createNewNote} className="gap-1 h-7 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80 transition-all duration-300">
           <Plus size={14} />
           New
         </Button>
@@ -90,7 +90,7 @@ export const Notepad = () => {
             <div
               key={note.id}
               onClick={() => setSelectedNoteId(note.id)}
-              className="p-2 border border-border rounded cursor-pointer hover:bg-muted/50 transition-colors"
+              className="p-2 border border-border/30 rounded-lg cursor-pointer hover:bg-muted/30 hover:scale-[1.02] transition-all duration-200 bg-background/30 backdrop-blur-sm"
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-sm truncate">{note.title}</span>
@@ -101,7 +101,7 @@ export const Notepad = () => {
                     e.stopPropagation();
                     deleteNote(note.id);
                   }}
-                  className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                  className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 hover:scale-110"
                 >
                   <Trash2 size={12} />
                 </Button>
@@ -119,9 +119,9 @@ export const Notepad = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Note title..."
-              className="text-sm h-8"
+              className="text-sm h-8 bg-background/50 backdrop-blur-sm border-border/50"
             />
-            <Button size="sm" onClick={saveNote} className="gap-1 h-8">
+            <Button size="sm" onClick={saveNote} className="gap-1 h-8 hover-glow transition-all duration-300">
               <Save size={14} />
             </Button>
           </div>
@@ -129,17 +129,17 @@ export const Notepad = () => {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Write your notes here..."
-            className="min-h-[120px] text-sm resize-none"
+            className="min-h-[120px] text-sm resize-none bg-background/50 backdrop-blur-sm border-border/50"
           />
           <div className="flex justify-between">
-            <Button size="sm" variant="ghost" onClick={() => setSelectedNoteId(null)} className="text-xs h-7">
+            <Button size="sm" variant="ghost" onClick={() => setSelectedNoteId(null)} className="text-xs h-7 hover:bg-muted/30 transition-all duration-200">
               ← Back to notes
             </Button>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => deleteNote(selectedNoteId)}
-              className="text-xs h-7 text-destructive hover:text-destructive"
+              className="text-xs h-7 text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
             >
               Delete
             </Button>

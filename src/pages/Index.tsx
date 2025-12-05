@@ -273,27 +273,27 @@ const Index = () => {
   }, [habitProgress]);
 
   return (
-    <div className="min-h-screen bg-background p-4 relative">
+    <div className="min-h-screen bg-background p-4 relative overflow-hidden">
       <StarField />
       <div className="max-w-[1600px] mx-auto space-y-4 relative z-10">
         {/* Header */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="border-2 border-border bg-primary p-4 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary opacity-90" />
+          <div className="glass-primary rounded-lg p-4 relative overflow-hidden hover-lift hover-glow animate-card-enter" style={{ animationDelay: '0ms' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent pointer-events-none" />
             <h1 className="text-2xl font-bold text-primary-foreground text-center relative z-10">HABIT TRACKER</h1>
             <p className="text-center text-primary-foreground text-sm mt-2 relative z-10">- {MONTHS[monthIndex]} -</p>
           </div>
           
-          <div className="border-2 border-border bg-primary p-4 space-y-2">
+          <div className="glass-primary rounded-lg p-4 space-y-2 hover-lift animate-card-enter" style={{ animationDelay: '100ms' }}>
             <div className="text-primary-foreground font-semibold text-sm text-center mb-2">CALENDAR SETTINGS</div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-primary-foreground block mb-1">YEARS</label>
                 <Select value={year.toString()} onValueChange={(v) => setYear(parseInt(v))}>
-                  <SelectTrigger className="bg-background border-border">
+                  <SelectTrigger className="bg-background/80 backdrop-blur-sm border-border/50 transition-all duration-200 hover:bg-background">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="glass">
                     {YEARS.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -301,10 +301,10 @@ const Index = () => {
               <div>
                 <label className="text-xs text-primary-foreground block mb-1">MONTHS</label>
                 <Select value={monthIndex.toString()} onValueChange={(v) => setMonthIndex(parseInt(v))}>
-                  <SelectTrigger className="bg-background border-border">
+                  <SelectTrigger className="bg-background/80 backdrop-blur-sm border-border/50 transition-all duration-200 hover:bg-background">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="glass">
                     {MONTHS.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -312,7 +312,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="border-2 border-border bg-secondary p-4 flex items-center justify-between">
+          <div className="glass-secondary rounded-lg p-4 flex items-center justify-between hover-lift animate-card-enter" style={{ animationDelay: '200ms' }}>
             <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -376,13 +376,13 @@ const Index = () => {
         </div>
 
         {/* Main Chart */}
-        <div className="border-2 border-border bg-card p-4">
+        <div className="glass-card rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '300ms' }}>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={dailyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" />
               <XAxis dataKey="day" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-              <Tooltip />
+              <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', backdropFilter: 'blur(8px)' }} />
               <Line type="monotone" dataKey="percentage" stroke="hsl(var(--chart-line))" fill="hsl(var(--chart-area))" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
@@ -391,7 +391,11 @@ const Index = () => {
         {/* Weekly Progress Headers */}
         <div className="grid grid-cols-5 gap-2">
           {weeklyStats.map((week, idx) => (
-            <div key={idx} style={{ backgroundColor: `hsl(var(--${week.color}))` }} className="border-2 border-border p-2">
+            <div 
+              key={idx} 
+              className="backdrop-blur-sm rounded-lg border border-border/30 p-2 hover-lift hover-scale transition-all duration-300 animate-card-enter"
+              style={{ backgroundColor: `hsl(var(--${week.color}) / 0.7)`, animationDelay: `${400 + idx * 50}ms` }}
+            >
               <div className="font-bold text-xs text-center text-foreground">{week.name}</div>
               <div className="grid grid-cols-7 gap-1 mt-2 text-xs text-center">
                 {Array.from({ length: 7 }).map((_, i) => {
@@ -404,14 +408,14 @@ const Index = () => {
                     <div 
                       key={i} 
                       onClick={() => setSelectedScheduleDay(dayNum)}
-                      className="cursor-pointer hover:bg-background/30 rounded p-0.5 transition-colors"
+                      className="cursor-pointer hover:bg-background/50 rounded-md p-0.5 transition-all duration-200 hover:scale-110"
                       title="Click to schedule"
                     >
                       <div className="font-semibold">{dayName.slice(0, 3)}</div>
                       <div className="relative">
                         {dayNum}
                         {hasEvents && (
-                          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary rounded-full" />
+                          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary rounded-full pulse-glow" />
                         )}
                       </div>
                     </div>
@@ -423,12 +427,15 @@ const Index = () => {
         </div>
 
         {/* Weekly Progress Stats */}
-        <div className="border-2 border-border bg-secondary p-4">
+        <div className="glass-secondary rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '650ms' }}>
           <div className="font-bold text-center mb-4">WEEKLY PROGRESS BY GRAPH</div>
           <div className="grid grid-cols-5 gap-4">
             {weeklyStats.map((week, idx) => (
-              <div key={idx} className="space-y-1">
-                <div style={{ backgroundColor: `hsl(var(--${week.color}))`, height: `${week.percentage}px` }} className="w-full border border-border" />
+              <div key={idx} className="space-y-1 hover-scale transition-transform duration-200">
+                <div 
+                  style={{ backgroundColor: `hsl(var(--${week.color}))`, height: `${Math.max(week.percentage, 10)}px` }} 
+                  className="w-full rounded-t-md border border-border/50 transition-all duration-500" 
+                />
                 <div className="text-xs space-y-1">
                   <div className="flex justify-between"><span className="font-semibold">COMPLETED</span><span>{week.completed}</span></div>
                   <div className="flex justify-between"><span className="font-semibold">GOAL</span><span>{week.goal}</span></div>
@@ -444,16 +451,16 @@ const Index = () => {
         {/* Main Grid and Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
           {/* Main Habit Grid */}
-          <div className="xl:col-span-3 border-2 border-border bg-card overflow-x-auto">
-            <div className="p-4 border-b border-border">
+          <div className="xl:col-span-3 glass-card rounded-lg overflow-x-auto animate-card-enter" style={{ animationDelay: '700ms' }}>
+            <div className="p-4 border-b border-border/30">
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2">
+                  <Button size="sm" className="gap-2 hover-lift hover-glow transition-all duration-300">
                     <Plus size={16} />
                     Add New Habit
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="glass-panel">
                   <DialogHeader>
                     <DialogTitle>Add New Habit</DialogTitle>
                   </DialogHeader>
@@ -467,9 +474,10 @@ const Index = () => {
                         onKeyDown={(e) => e.key === 'Enter' && addNewHabit()}
                         placeholder="Enter habit name..."
                         autoFocus
+                        className="bg-background/50 backdrop-blur-sm"
                       />
                     </div>
-                    <Button onClick={addNewHabit} className="w-full">
+                    <Button onClick={addNewHabit} className="w-full hover-glow">
                       Add Habit
                     </Button>
                   </div>
@@ -478,27 +486,27 @@ const Index = () => {
             </div>
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="bg-secondary">
-                  <th className="border border-border p-1 sticky left-0 bg-secondary z-10 w-12">#</th>
-                  <th className="border border-border p-2 text-left sticky left-12 bg-secondary z-10 min-w-[200px]">DAILY HABITS</th>
-                  <th className="border border-border p-1 sticky left-[248px] bg-secondary z-10 w-12"></th>
+                <tr className="bg-secondary/50 backdrop-blur-sm">
+                  <th className="border border-border/30 p-1 sticky left-0 bg-secondary/80 backdrop-blur-sm z-10 w-12">#</th>
+                  <th className="border border-border/30 p-2 text-left sticky left-12 bg-secondary/80 backdrop-blur-sm z-10 min-w-[200px]">DAILY HABITS</th>
+                  <th className="border border-border/30 p-1 sticky left-[248px] bg-secondary/80 backdrop-blur-sm z-10 w-12"></th>
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const weekIdx = Math.floor(i / 7);
                     const weekColor = weeklyStats[weekIdx]?.color || "week-1";
                     return (
-                      <th key={i} style={{ backgroundColor: `hsl(var(--${weekColor}))` }} className="border border-border p-1 w-8">{i + 1}</th>
+                      <th key={i} style={{ backgroundColor: `hsl(var(--${weekColor}) / 0.6)` }} className="border border-border/30 p-1 w-8 backdrop-blur-sm">{i + 1}</th>
                     );
                   })}
-                  <th className="border border-border p-1 bg-secondary">COMPLETED</th>
-                  <th className="border border-border p-1 bg-secondary">LEFT</th>
-                  <th className="border border-border p-1 bg-secondary min-w-[150px]">PROGRESS</th>
+                  <th className="border border-border/30 p-1 bg-secondary/80 backdrop-blur-sm">COMPLETED</th>
+                  <th className="border border-border/30 p-1 bg-secondary/80 backdrop-blur-sm">LEFT</th>
+                  <th className="border border-border/30 p-1 bg-secondary/80 backdrop-blur-sm min-w-[150px]">PROGRESS</th>
                 </tr>
               </thead>
               <tbody>
                 {habitProgress.map((habit, hIdx) => (
-                  <tr key={habit.id} className="hover:bg-muted/50">
-                    <td className="border border-border p-1 text-center sticky left-0 bg-card w-12">{hIdx + 1}</td>
-                    <td className="border border-border p-2 sticky left-12 bg-card">
+                  <tr key={habit.id} className="hover:bg-muted/30 transition-colors duration-200">
+                    <td className="border border-border/30 p-1 text-center sticky left-0 bg-card/80 backdrop-blur-sm w-12">{hIdx + 1}</td>
+                    <td className="border border-border/30 p-2 sticky left-12 bg-card/80 backdrop-blur-sm">
                       {editingHabitId === habit.id ? (
                         <input
                           type="text"
@@ -506,25 +514,25 @@ const Index = () => {
                           onChange={(e) => setEditingName(e.target.value)}
                           onBlur={saveHabitName}
                           onKeyDown={handleNameKeyDown}
-                          className="w-full bg-background border border-border px-1 text-xs"
+                          className="w-full bg-background/80 backdrop-blur-sm border border-border/50 px-1 text-xs rounded"
                           autoFocus
                         />
                       ) : (
                         <span
                           onDoubleClick={() => startEditingHabit(habit.id, habit.name)}
-                          className="cursor-pointer hover:text-primary"
+                          className="cursor-pointer hover:text-primary transition-colors duration-200"
                           title="Double-click to edit"
                         >
                           {habit.name}
                         </span>
                       )}
                     </td>
-                    <td className="border border-border p-1 text-center sticky left-[248px] bg-card">
+                    <td className="border border-border/30 p-1 text-center sticky left-[248px] bg-card/80 backdrop-blur-sm">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => deleteHabit(habit.id)}
-                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground transition-all duration-200 hover:scale-110"
                         title="Delete habit"
                       >
                         <Trash2 size={14} />
@@ -534,22 +542,22 @@ const Index = () => {
                       const weekIdx = Math.floor(dayIdx / 7);
                       const weekColor = weeklyStats[weekIdx]?.color || "week-1";
                       return (
-                        <td key={dayIdx} style={{ backgroundColor: `hsl(var(--${weekColor}))` }} className="border border-border p-1 text-center">
+                        <td key={dayIdx} style={{ backgroundColor: `hsl(var(--${weekColor}) / 0.4)` }} className="border border-border/30 p-1 text-center">
                           <Checkbox 
                             checked={habit.days[dayIdx]} 
                             onCheckedChange={() => toggleDay(habit.id, dayIdx)}
-                            className="mx-auto"
+                            className="mx-auto transition-transform duration-200 hover:scale-110"
                           />
                         </td>
                       );
                     })}
-                    <td className="border border-border p-1 text-center bg-card">{habit.completed}</td>
-                    <td className="border border-border p-1 text-center bg-card">{habit.left}</td>
-                    <td className="border border-border p-1 bg-card">
+                    <td className="border border-border/30 p-1 text-center bg-card/80 backdrop-blur-sm">{habit.completed}</td>
+                    <td className="border border-border/30 p-1 text-center bg-card/80 backdrop-blur-sm">{habit.left}</td>
+                    <td className="border border-border/30 p-1 bg-card/80 backdrop-blur-sm">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-4 bg-progress-bg rounded-sm overflow-hidden">
+                        <div className="flex-1 h-4 bg-progress-bg/50 rounded-sm overflow-hidden backdrop-blur-sm">
                           <div 
-                            className="h-full bg-progress-fill transition-all duration-300" 
+                            className="h-full bg-progress-fill transition-all duration-500 ease-out" 
                             style={{ width: `${habit.percentage}%` }}
                           />
                         </div>
@@ -572,7 +580,7 @@ const Index = () => {
             <Notepad />
             
             {/* Overview Daily Progress */}
-            <div className="border-2 border-border bg-primary p-4">
+            <div className="glass-primary rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '800ms' }}>
               <h3 className="font-bold text-center text-primary-foreground mb-4">OVERVIEW DAILY PROGRESS</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -589,7 +597,7 @@ const Index = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={{ background: 'hsl(var(--card) / 0.9)', border: '1px solid hsl(var(--border) / 0.3)', borderRadius: '8px', backdropFilter: 'blur(8px)' }} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-4 space-y-2 text-xs">
@@ -603,11 +611,11 @@ const Index = () => {
             </div>
 
             {/* Top 10 Habits */}
-            <div className="border-2 border-border bg-primary p-4">
+            <div className="glass-primary rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '900ms' }}>
               <h3 className="font-bold text-center text-primary-foreground mb-4">TOP 10 DAILY HABITS</h3>
               <div className="space-y-2">
                 {top10Habits.map((habit, idx) => (
-                  <div key={habit.id} className="flex items-center gap-2 text-xs text-primary-foreground">
+                  <div key={habit.id} className="flex items-center gap-2 text-xs text-primary-foreground hover:bg-primary-foreground/10 rounded px-1 py-0.5 transition-colors duration-200">
                     <span className="font-bold w-6">{idx + 1}</span>
                     <span className="flex-1">{habit.name}</span>
                     <span className="font-semibold">{habit.percentage.toFixed(0)}%</span>
