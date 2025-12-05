@@ -104,7 +104,7 @@ export const Timer = () => {
   };
 
   return (
-    <div className="border-2 border-border bg-card p-4 space-y-4">
+    <div className="glass-card rounded-lg p-4 space-y-4 hover-lift transition-all duration-300">
       <h3 className="font-bold text-center text-sm">TIMER</h3>
       
       {totalSeconds === 0 && !isRunning ? (
@@ -117,7 +117,7 @@ export const Timer = () => {
               max={23}
               value={hours}
               onChange={(e) => setHours(Math.max(0, parseInt(e.target.value) || 0))}
-              className="w-16 text-center text-sm"
+              className="w-16 text-center text-sm bg-background/50 backdrop-blur-sm border-border/50"
             />
           </div>
           <div className="text-center">
@@ -128,7 +128,7 @@ export const Timer = () => {
               max={59}
               value={minutes}
               onChange={(e) => setMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-              className="w-16 text-center text-sm"
+              className="w-16 text-center text-sm bg-background/50 backdrop-blur-sm border-border/50"
             />
           </div>
           <div className="text-center">
@@ -139,7 +139,7 @@ export const Timer = () => {
               max={59}
               value={seconds}
               onChange={(e) => setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-              className="w-16 text-center text-sm"
+              className="w-16 text-center text-sm bg-background/50 backdrop-blur-sm border-border/50"
             />
           </div>
         </div>
@@ -151,27 +151,27 @@ export const Timer = () => {
 
       <div className="flex gap-2 justify-center">
         {!isRunning && totalSeconds === 0 ? (
-          <Button size="sm" onClick={startTimer} className="gap-1">
+          <Button size="sm" onClick={startTimer} className="gap-1 hover-glow transition-all duration-300">
             <Play size={14} />
             Start
           </Button>
         ) : isRunning ? (
-          <Button size="sm" onClick={pauseTimer} variant="secondary" className="gap-1">
+          <Button size="sm" onClick={pauseTimer} variant="secondary" className="gap-1 transition-all duration-300">
             <Pause size={14} />
             Pause
           </Button>
         ) : (
-          <Button size="sm" onClick={() => setIsRunning(true)} className="gap-1">
+          <Button size="sm" onClick={() => setIsRunning(true)} className="gap-1 hover-glow transition-all duration-300">
             <Play size={14} />
             Resume
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={resetTimer} className="gap-1">
+        <Button size="sm" variant="outline" onClick={resetTimer} className="gap-1 bg-background/50 backdrop-blur-sm border-border/50 transition-all duration-300 hover:bg-background/80">
           <RotateCcw size={14} />
           Reset
         </Button>
         {isAlarmPlaying && (
-          <Button size="sm" variant="destructive" onClick={stopAlarm} className="gap-1">
+          <Button size="sm" variant="destructive" onClick={stopAlarm} className="gap-1 animate-pulse">
             <BellOff size={14} />
             Stop Alarm
           </Button>
