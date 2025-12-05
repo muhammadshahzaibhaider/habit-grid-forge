@@ -20,6 +20,64 @@ serve(async (req) => {
 
     console.log("Processing chat request with", messages.length, "messages");
 
+    const systemPrompt = `You are a helpful Habit Coach AI assistant. You help users build better habits, stay motivated, and achieve their goals.
+
+When users ask you to create a schedule or learning plan, you MUST use the create_schedule tool to generate events they can add to their calendar. Always generate practical, time-boxed events with specific times.
+
+For learning plans (like "learn React in 30 days"), break it down into daily sessions with specific topics and realistic times. Create events for the first week or so to keep it manageable.
+
+Keep your conversational responses clear and concise.`;
+
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "create_schedule",
+          description: "Create a schedule with events that can be added to the user's calendar. Use this when users ask for a schedule, learning plan, study plan, or any time-based planning.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "Title of the overall schedule/plan"
+              },
+              description: {
+                type: "string", 
+                description: "Brief description of the schedule"
+              },
+              events: {
+                type: "array",
+                description: "Array of events for the schedule (create 5-10 events for the first week)",
+                items: {
+                  type: "object",
+                  properties: {
+                    day: {
+                      type: "number",
+                      description: "Day of the month (1-31)"
+                    },
+                    title: {
+                      type: "string",
+                      description: "Event title"
+                    },
+                    startTime: {
+                      type: "string",
+                      description: "Start time in HH:MM format (24h)"
+                    },
+                    endTime: {
+                      type: "string",
+                      description: "End time in HH:MM format (24h)"
+                    }
+                  },
+                  required: ["day", "title", "startTime", "endTime"]
+                }
+              }
+            },
+            required: ["title", "description", "events"]
+          }
+        }
+      }
+    ];
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -29,12 +87,10 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { 
-            role: "system", 
-            content: "You are a helpful habit coach assistant. Help users build better habits, stay motivated, and achieve their goals. Keep responses concise and actionable. Provide tips on habit formation, discipline, and self-improvement." 
-          },
+          { role: "system", content: systemPrompt },
           ...messages,
         ],
+        tools,
         stream: true,
       }),
     });
