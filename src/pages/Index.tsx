@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Calendar } from "lucide-react";
 import { DayScheduler, ScheduleEvent } from "@/components/DayScheduler";
+import { AIChatDialog } from "@/components/AIChatDialog";
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -304,8 +305,9 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="border-2 border-border bg-secondary p-4">
-            <div className="text-secondary-foreground font-bold text-center text-lg">OVERVIEW</div>
+          <div className="border-2 border-border bg-secondary p-4 flex items-center justify-between">
+            <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
+            <AIChatDialog />
           </div>
         </div>
 
