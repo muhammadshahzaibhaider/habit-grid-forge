@@ -1,5 +1,5 @@
 import { useMemo, useRef, useCallback, useState } from "react";
-import { Download, Maximize2, X, Image, FileImage } from "lucide-react";
+import { Download, Maximize2, X, Image, FileImage, FileText, Presentation } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -7,6 +7,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import jsPDF from "jspdf";
+import PptxGenJS from "pptxgenjs";
 
 interface MindMapNode {
   id: string;
@@ -105,30 +107,79 @@ export const MindMap = ({ title, nodes }: MindMapProps) => {
     return { positionedNodes: Array.from(nodeMap.values()), connections: conns, width: Math.max(maxX - minX + padding * 2, 600), height: Math.max(maxY - minY + padding * 2, 400) };
   }, [nodes]);
 
-  const handleDownload = useCallback((format: 'jpg' | 'png') => {
+  const getCanvasFromSvg = useCallback(async (format: 'jpg' | 'png' | 'pdf' | 'pptx'): Promise<HTMLCanvasElement | null> => {
     const targetSvg = isFullscreen ? fullscreenSvgRef.current : svgRef.current;
-    if (!targetSvg) return;
+    if (!targetSvg) return null;
+    
     const svgData = new XMLSerializer().serializeToString(targetSvg);
     const canvas = document.createElement("canvas");
-    canvas.width = width * 2; canvas.height = height * 2;
+    canvas.width = width * 2; 
+    canvas.height = height * 2;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
     
-    if (format === 'jpg') {
+    if (format === 'jpg' || format === 'pdf' || format === 'pptx') {
       ctx.fillStyle = "#1a1a2e"; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     
-    const img = document.createElement("img");
-    img.onload = () => { 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+    return new Promise((resolve) => {
+      const img = document.createElement("img");
+      img.onload = () => { 
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+        resolve(canvas);
+      };
+      img.onerror = () => resolve(null);
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    });
+  }, [width, height, isFullscreen]);
+
+  const handleDownload = useCallback(async (format: 'jpg' | 'png' | 'pdf' | 'pptx') => {
+    const canvas = await getCanvasFromSvg(format);
+    if (!canvas) return;
+    
+    const fileName = `mindmap-${title.replace(/\s+/g, "-").toLowerCase()}`;
+    
+    if (format === 'jpg' || format === 'png') {
       const link = document.createElement("a"); 
-      link.download = `mindmap-${title.replace(/\s+/g, "-").toLowerCase()}.${format}`; 
+      link.download = `${fileName}.${format}`; 
       link.href = canvas.toDataURL(format === 'jpg' ? "image/jpeg" : "image/png", 0.95); 
-      link.click(); 
-    };
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-  }, [title, width, height, isFullscreen]);
+      link.click();
+    } else if (format === 'pdf') {
+      const imgData = canvas.toDataURL("image/png", 1.0);
+      const pdf = new jsPDF({
+        orientation: width > height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [width * 2, height * 2]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, width * 2, height * 2);
+      pdf.save(`${fileName}.pdf`);
+    } else if (format === 'pptx') {
+      const imgData = canvas.toDataURL("image/png", 1.0);
+      const pptx = new PptxGenJS();
+      pptx.author = "Mind Map Generator";
+      pptx.title = title;
+      
+      const slide = pptx.addSlide();
+      slide.background = { color: "1a1a2e" };
+      slide.addImage({
+        data: imgData,
+        x: 0.5,
+        y: 0.5,
+        w: 9,
+        h: (9 * height) / width,
+      });
+      slide.addText(title, {
+        x: 0.5,
+        y: 0.2,
+        fontSize: 18,
+        color: "ffffff",
+        bold: true
+      });
+      
+      pptx.writeFile({ fileName: `${fileName}.pptx` });
+    }
+  }, [title, width, height, getCanvasFromSvg]);
 
   const getCurvedPath = (x1: number, y1: number, x2: number, y2: number) => {
     const dx = x2 - x1, dy = y2 - y1, dist = Math.sqrt(dx * dx + dy * dy);
@@ -244,6 +295,14 @@ export const MindMap = ({ title, nodes }: MindMapProps) => {
                   <Image className="h-4 w-4" />
                   Download as PNG
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownload('pdf')} className="gap-2 cursor-pointer">
+                  <FileText className="h-4 w-4" />
+                  Download as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownload('pptx')} className="gap-2 cursor-pointer">
+                  <Presentation className="h-4 w-4" />
+                  Download as PPTX
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -276,6 +335,14 @@ export const MindMap = ({ title, nodes }: MindMapProps) => {
                   <DropdownMenuItem onClick={() => handleDownload('png')} className="gap-2 cursor-pointer">
                     <Image className="h-4 w-4" />
                     Download as PNG
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload('pdf')} className="gap-2 cursor-pointer">
+                    <FileText className="h-4 w-4" />
+                    Download as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload('pptx')} className="gap-2 cursor-pointer">
+                    <Presentation className="h-4 w-4" />
+                    Download as PPTX
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
