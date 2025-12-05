@@ -1,6 +1,12 @@
-import { useMemo, useRef, useCallback } from "react";
-import { Download } from "lucide-react";
+import { useMemo, useRef, useCallback, useState } from "react";
+import { Download, Maximize2, X, Image, FileImage } from "lucide-react";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface MindMapNode {
   id: string;
@@ -28,6 +34,8 @@ const BRANCH_COLORS = [
 
 export const MindMap = ({ title, nodes }: MindMapProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const fullscreenSvgRef = useRef<SVGSVGElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const { positionedNodes, connections, width, height } = useMemo(() => {
     if (nodes.length === 0) {
@@ -97,55 +105,195 @@ export const MindMap = ({ title, nodes }: MindMapProps) => {
     return { positionedNodes: Array.from(nodeMap.values()), connections: conns, width: Math.max(maxX - minX + padding * 2, 600), height: Math.max(maxY - minY + padding * 2, 400) };
   }, [nodes]);
 
-  const handleDownload = useCallback(() => {
-    if (!svgRef.current) return;
-    const svgData = new XMLSerializer().serializeToString(svgRef.current);
+  const handleDownload = useCallback((format: 'jpg' | 'png') => {
+    const targetSvg = isFullscreen ? fullscreenSvgRef.current : svgRef.current;
+    if (!targetSvg) return;
+    const svgData = new XMLSerializer().serializeToString(targetSvg);
     const canvas = document.createElement("canvas");
     canvas.width = width * 2; canvas.height = height * 2;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const img = new Image();
-    img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const link = document.createElement("a"); link.download = `mindmap-${title.replace(/\s+/g, "-").toLowerCase()}.jpg`; link.href = canvas.toDataURL("image/jpeg", 0.95); link.click(); };
+    
+    if (format === 'jpg') {
+      ctx.fillStyle = "#1a1a2e"; 
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    const img = document.createElement("img");
+    img.onload = () => { 
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+      const link = document.createElement("a"); 
+      link.download = `mindmap-${title.replace(/\s+/g, "-").toLowerCase()}.${format}`; 
+      link.href = canvas.toDataURL(format === 'jpg' ? "image/jpeg" : "image/png", 0.95); 
+      link.click(); 
+    };
     img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-  }, [title, width, height]);
+  }, [title, width, height, isFullscreen]);
 
   const getCurvedPath = (x1: number, y1: number, x2: number, y2: number) => {
     const dx = x2 - x1, dy = y2 - y1, dist = Math.sqrt(dx * dx + dy * dy);
     if (dist === 0) return `M ${x1} ${y1} L ${x2} ${y2}`;
     const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
-    return `M ${x1} ${y1} Q ${midX + (-dy / dist) * dist * 0.05} ${midY + (dx / dist) * dist * 0.05} ${x2} ${y2}`;
+    const curvature = 0.15;
+    return `M ${x1} ${y1} Q ${midX + (-dy / dist) * dist * curvature} ${midY + (dx / dist) * dist * curvature} ${x2} ${y2}`;
   };
 
+  const renderSvgContent = (ref: React.RefObject<SVGSVGElement>, bgColor: string) => (
+    <svg ref={ref} width={width} height={height} style={{ minHeight: 300, background: bgColor }}>
+      <defs>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <linearGradient id="centerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#6366f1"/>
+          <stop offset="100%" stopColor="#8b5cf6"/>
+        </linearGradient>
+      </defs>
+      
+      {connections.map((conn, idx) => (
+        <path 
+          key={idx} 
+          d={getCurvedPath(conn.x1, conn.y1, conn.x2, conn.y2)} 
+          fill="none" 
+          stroke={conn.color} 
+          strokeWidth={conn.level === 1 ? 3 : 2} 
+          strokeLinecap="round" 
+          opacity={0.8}
+          filter="url(#glow)"
+        />
+      ))}
+      
+      {positionedNodes.map((node) => {
+        const w = node.level === 0 ? Math.max(140, node.label.length * 10) : Math.max(90, Math.min(150, node.label.length * 8));
+        const h = node.level === 0 ? 54 : 38;
+        const isCenter = node.level === 0 && positionedNodes.filter(n => n.level === 0).length === 1;
+        
+        return (
+          <g key={node.id}>
+            <rect 
+              x={node.x - w / 2 - 2} 
+              y={node.y - h / 2 - 2} 
+              width={w + 4} 
+              height={h + 4} 
+              rx={(h + 4) / 2} 
+              fill={isCenter ? "rgba(99, 102, 241, 0.3)" : `${node.color}33`}
+              filter="url(#glow)"
+            />
+            <rect 
+              x={node.x - w / 2} 
+              y={node.y - h / 2} 
+              width={w} 
+              height={h} 
+              rx={h / 2} 
+              fill={isCenter ? "url(#centerGradient)" : node.color}
+              style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))" }}
+            />
+            <text 
+              x={node.x} 
+              y={node.y} 
+              textAnchor="middle" 
+              dominantBaseline="middle" 
+              fill="#ffffff" 
+              fontWeight={isCenter ? 700 : 500} 
+              fontSize={isCenter ? 15 : 12}
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+            >
+              {node.label.length > 22 ? node.label.slice(0, 20) + "..." : node.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-        <h3 className="font-semibold text-sm text-foreground">{title}</h3>
-        <Button variant="outline" size="sm" onClick={handleDownload} className="gap-2">
-          <Download className="h-4 w-4" />
-          Download JPG
-        </Button>
+    <>
+      <div className="rounded-xl border border-border overflow-hidden bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] shadow-xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/10 to-accent/10 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <h3 className="font-semibold text-sm text-foreground">{title}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsFullscreen(true)} 
+              className="gap-2 bg-background/50 hover:bg-background/80 border-border/50"
+            >
+              <Maximize2 className="h-4 w-4" />
+              Fullscreen
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 bg-background/50 hover:bg-background/80 border-border/50">
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleDownload('jpg')} className="gap-2 cursor-pointer">
+                  <FileImage className="h-4 w-4" />
+                  Download as JPG
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDownload('png')} className="gap-2 cursor-pointer">
+                  <Image className="h-4 w-4" />
+                  Download as PNG
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="overflow-auto p-4">
+          {renderSvgContent(svgRef, "#1a1a2e")}
+        </div>
       </div>
-      <div className="overflow-auto p-4">
-        <svg ref={svgRef} width={width} height={height} style={{ minHeight: 300, background: "#ffffff" }}>
-          {connections.map((conn, idx) => (
-            <path key={idx} d={getCurvedPath(conn.x1, conn.y1, conn.x2, conn.y2)} fill="none" stroke={conn.color} strokeWidth={conn.level === 1 ? 4 : 2} strokeLinecap="round" opacity={0.7} />
-          ))}
-          {positionedNodes.map((node) => {
-            const w = node.level === 0 ? Math.max(120, node.label.length * 9) : Math.max(80, Math.min(140, node.label.length * 7));
-            const h = node.level === 0 ? 50 : 36;
-            const isCenter = node.level === 0 && positionedNodes.filter(n => n.level === 0).length === 1;
-            return (
-              <g key={node.id}>
-                <rect x={node.x - w / 2} y={node.y - h / 2} width={w} height={h} rx={h / 2} fill={isCenter ? "#16a34a" : node.color} />
-                <text x={node.x} y={node.y} textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontWeight={isCenter ? 700 : 500} fontSize={isCenter ? 14 : 11}>
-                  {node.label.length > 20 ? node.label.slice(0, 18) + "..." : node.label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    </div>
+
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-[#0f0f23]/95 backdrop-blur-md flex flex-col">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border/30 bg-gradient-to-r from-primary/5 to-accent/5">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+              <h3 className="font-bold text-lg text-foreground">{title}</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleDownload('jpg')} className="gap-2 cursor-pointer">
+                    <FileImage className="h-4 w-4" />
+                    Download as JPG
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload('png')} className="gap-2 cursor-pointer">
+                    <Image className="h-4 w-4" />
+                    Download as PNG
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsFullscreen(false)}
+                className="hover:bg-destructive/20 hover:text-destructive"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto flex items-center justify-center p-8">
+            {renderSvgContent(fullscreenSvgRef, "#0f0f23")}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
