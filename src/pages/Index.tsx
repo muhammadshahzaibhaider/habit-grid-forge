@@ -12,6 +12,8 @@ import { AIChatDialog } from "@/components/AIChatDialog";
 import { Timer } from "@/components/Timer";
 import { Stopwatch } from "@/components/Stopwatch";
 import { Notepad } from "@/components/Notepad";
+import { StarField } from "@/components/StarField";
+import { ThemeToggle } from "@/components/ThemeToggle";
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -271,13 +273,15 @@ const Index = () => {
   }, [habitProgress]);
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-[1600px] mx-auto space-y-4">
+    <div className="min-h-screen bg-background p-4 relative">
+      <StarField />
+      <div className="max-w-[1600px] mx-auto space-y-4 relative z-10">
         {/* Header */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="border-2 border-border bg-primary p-4">
-            <h1 className="text-2xl font-bold text-primary-foreground text-center">HABIT TRACKER</h1>
-            <p className="text-center text-primary-foreground text-sm mt-2">- {MONTHS[monthIndex]} -</p>
+          <div className="border-2 border-border bg-primary p-4 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary opacity-90" />
+            <h1 className="text-2xl font-bold text-primary-foreground text-center relative z-10">HABIT TRACKER</h1>
+            <p className="text-center text-primary-foreground text-sm mt-2 relative z-10">- {MONTHS[monthIndex]} -</p>
           </div>
           
           <div className="border-2 border-border bg-primary p-4 space-y-2">
@@ -310,7 +314,9 @@ const Index = () => {
 
           <div className="border-2 border-border bg-secondary p-4 flex items-center justify-between">
             <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
-            <AIChatDialog 
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <AIChatDialog
               existingEvents={scheduleEvents}
               onAddSchedule={(events) => {
                 const EVENT_COLORS = [
@@ -365,6 +371,7 @@ const Index = () => {
                 });
               }}
             />
+            </div>
           </div>
         </div>
 
