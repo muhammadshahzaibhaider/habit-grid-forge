@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Gamepad2 } from "lucide-react";
 import { DayScheduler, ScheduleEvent } from "@/components/DayScheduler";
 import { AIChatDialog } from "@/components/AIChatDialog";
 import { Timer } from "@/components/Timer";
@@ -14,6 +14,7 @@ import { Stopwatch } from "@/components/Stopwatch";
 import { Notepad } from "@/components/Notepad";
 import { StarField } from "@/components/StarField";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ChessGame } from "@/components/ChessGame";
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -578,6 +579,17 @@ const Index = () => {
             
             {/* Notepad */}
             <Notepad />
+            
+            {/* Games Section */}
+            <div className="glass-card rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '750ms' }}>
+              <h3 className="font-bold text-center mb-3 flex items-center justify-center gap-2">
+                <Gamepad2 className="h-4 w-4" />
+                GAMES
+              </h3>
+              <div className="space-y-2">
+                <ChessGame />
+              </div>
+            </div>
             
             {/* Overview Daily Progress */}
             <div className="glass-primary rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '800ms' }}>
