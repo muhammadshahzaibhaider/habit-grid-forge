@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Calendar } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { DayScheduler, ScheduleEvent } from "@/components/DayScheduler";
 import { AIChatDialog } from "@/components/AIChatDialog";
+import { Timer } from "@/components/Timer";
+import { Stopwatch } from "@/components/Stopwatch";
+import { Notepad } from "@/components/Notepad";
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -500,6 +503,13 @@ const Index = () => {
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Timer & Stopwatch */}
+            <Timer />
+            <Stopwatch />
+            
+            {/* Notepad */}
+            <Notepad />
+            
             {/* Overview Daily Progress */}
             <div className="border-2 border-border bg-primary p-4">
               <h3 className="font-bold text-center text-primary-foreground mb-4">OVERVIEW DAILY PROGRESS</h3>
