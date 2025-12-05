@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, existingEvents } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -20,11 +20,25 @@ serve(async (req) => {
 
     console.log("Processing chat request with", messages.length, "messages");
 
+    const eventsContext = existingEvents && Object.keys(existingEvents).length > 0 
+      ? `\n\nCurrent scheduled events:\n${JSON.stringify(existingEvents, null, 2)}`
+      : "\n\nNo events currently scheduled.";
+
     const systemPrompt = `You are a helpful Habit Coach AI assistant. You help users build better habits, stay motivated, and achieve their goals.
 
-When users ask you to create a schedule or learning plan, you MUST use the create_schedule tool to generate events they can add to their calendar. Always generate practical, time-boxed events with specific times.
+You have access to the user's calendar and can:
+1. CREATE new schedules/events using the create_schedule tool
+2. RESCHEDULE existing events using the reschedule_events tool
+3. DELETE events using the delete_events tool
+4. GENERATE mind maps for concepts using the create_mindmap tool
 
-For learning plans (like "learn React in 30 days"), break it down into daily sessions with specific topics and realistic times. Create events for the first week or so to keep it manageable.
+When users ask you to create a schedule or learning plan, use create_schedule to generate events.
+When users ask to reschedule or move events, use reschedule_events with the event IDs.
+When users ask to delete or remove events, use delete_events with the event IDs.
+When users ask for a mind map or concept visualization, use create_mindmap to generate it.
+
+For mind maps, create a hierarchical structure with a central topic and branching subtopics. Each node should have a unique id, label, and optional children.
+${eventsContext}
 
 Keep your conversational responses clear and concise.`;
 
@@ -37,42 +51,107 @@ Keep your conversational responses clear and concise.`;
           parameters: {
             type: "object",
             properties: {
-              title: {
-                type: "string",
-                description: "Title of the overall schedule/plan"
-              },
-              description: {
-                type: "string", 
-                description: "Brief description of the schedule"
-              },
+              title: { type: "string", description: "Title of the overall schedule/plan" },
+              description: { type: "string", description: "Brief description of the schedule" },
               events: {
                 type: "array",
                 description: "Array of events for the schedule (create 5-10 events for the first week)",
                 items: {
                   type: "object",
                   properties: {
-                    day: {
-                      type: "number",
-                      description: "Day of the month (1-31)"
-                    },
-                    title: {
-                      type: "string",
-                      description: "Event title"
-                    },
-                    startTime: {
-                      type: "string",
-                      description: "Start time in HH:MM format (24h)"
-                    },
-                    endTime: {
-                      type: "string",
-                      description: "End time in HH:MM format (24h)"
-                    }
+                    day: { type: "number", description: "Day of the month (1-31)" },
+                    title: { type: "string", description: "Event title" },
+                    startTime: { type: "string", description: "Start time in HH:MM format (24h)" },
+                    endTime: { type: "string", description: "End time in HH:MM format (24h)" }
                   },
                   required: ["day", "title", "startTime", "endTime"]
                 }
               }
             },
             required: ["title", "description", "events"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "reschedule_events",
+          description: "Reschedule existing events to new times or days. Use when users want to move, reschedule, or change timing of events.",
+          parameters: {
+            type: "object",
+            properties: {
+              changes: {
+                type: "array",
+                description: "Array of event changes",
+                items: {
+                  type: "object",
+                  properties: {
+                    eventId: { type: "number", description: "ID of the event to reschedule" },
+                    originalDay: { type: "number", description: "Original day of the event" },
+                    newDay: { type: "number", description: "New day for the event (1-31)" },
+                    newStartTime: { type: "string", description: "New start time in HH:MM format (24h)" },
+                    newEndTime: { type: "string", description: "New end time in HH:MM format (24h)" }
+                  },
+                  required: ["eventId", "originalDay", "newDay", "newStartTime", "newEndTime"]
+                }
+              },
+              message: { type: "string", description: "Confirmation message to show the user" }
+            },
+            required: ["changes", "message"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delete_events",
+          description: "Delete events from the calendar. Use when users want to remove, delete, or cancel events.",
+          parameters: {
+            type: "object",
+            properties: {
+              deletions: {
+                type: "array",
+                description: "Array of events to delete",
+                items: {
+                  type: "object",
+                  properties: {
+                    eventId: { type: "number", description: "ID of the event to delete" },
+                    day: { type: "number", description: "Day where the event is scheduled" }
+                  },
+                  required: ["eventId", "day"]
+                }
+              },
+              message: { type: "string", description: "Confirmation message to show the user" }
+            },
+            required: ["deletions", "message"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_mindmap",
+          description: "Create a mind map visualization for a concept or topic. Use when users ask for a mind map, concept map, or visual breakdown of a topic.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Title of the mind map" },
+              nodes: {
+                type: "array",
+                description: "Array of mind map nodes",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "Unique node ID" },
+                    label: { type: "string", description: "Node label text" },
+                    parentId: { type: "string", description: "Parent node ID (null for root)" },
+                    color: { type: "string", description: "Node color (optional)" }
+                  },
+                  required: ["id", "label"]
+                }
+              }
+            },
+            required: ["title", "nodes"]
           }
         }
       }
