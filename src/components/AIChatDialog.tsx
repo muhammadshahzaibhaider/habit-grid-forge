@@ -3,13 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Send, Bot, User, Loader2, Calendar, Check } from "lucide-react";
+import { MessageSquare, Send, Bot, User, Loader2, Calendar, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MindMap } from "./MindMap";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   schedule?: SchedulePlan;
+  reschedule?: ReschedulePlan;
+  deletions?: DeletionPlan;
+  mindmap?: MindMapData;
 }
 
 interface ScheduleEvent {
@@ -25,13 +29,64 @@ interface SchedulePlan {
   events: ScheduleEvent[];
 }
 
+interface RescheduleChange {
+  eventId: number;
+  originalDay: number;
+  newDay: number;
+  newStartTime: string;
+  newEndTime: string;
+}
+
+interface ReschedulePlan {
+  changes: RescheduleChange[];
+  message: string;
+}
+
+interface DeletionItem {
+  eventId: number;
+  day: number;
+}
+
+interface DeletionPlan {
+  deletions: DeletionItem[];
+  message: string;
+}
+
+interface MindMapNode {
+  id: string;
+  label: string;
+  parentId?: string | null;
+  color?: string;
+}
+
+interface MindMapData {
+  title: string;
+  nodes: MindMapNode[];
+}
+
+interface ExistingEvent {
+  id: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  color: string;
+}
+
 interface AIChatDialogProps {
   onAddSchedule?: (events: ScheduleEvent[]) => void;
+  onRescheduleEvents?: (changes: RescheduleChange[]) => void;
+  onDeleteEvents?: (deletions: DeletionItem[]) => void;
+  existingEvents?: { [day: number]: ExistingEvent[] };
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
+export const AIChatDialog = ({ 
+  onAddSchedule, 
+  onRescheduleEvents, 
+  onDeleteEvents,
+  existingEvents = {}
+}: AIChatDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -58,7 +113,10 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({ 
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          existingEvents 
+        }),
       });
 
       if (!resp.ok) {
@@ -72,8 +130,8 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
       const decoder = new TextDecoder();
       let textBuffer = "";
       let assistantContent = "";
+      let toolCallName = "";
       let toolCallArgs = "";
-      let isToolCall = false;
 
       setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
@@ -99,16 +157,16 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
             const parsed = JSON.parse(jsonStr);
             const delta = parsed.choices?.[0]?.delta;
             
-            // Handle tool calls
             if (delta?.tool_calls) {
-              isToolCall = true;
               const toolCall = delta.tool_calls[0];
+              if (toolCall?.function?.name) {
+                toolCallName = toolCall.function.name;
+              }
               if (toolCall?.function?.arguments) {
                 toolCallArgs += toolCall.function.arguments;
               }
             }
             
-            // Handle regular content
             const content = delta?.content as string | undefined;
             if (content) {
               assistantContent += content;
@@ -126,22 +184,54 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
       }
 
       // Process tool call if present
-      if (isToolCall && toolCallArgs) {
+      if (toolCallName && toolCallArgs) {
         try {
-          const schedule = JSON.parse(toolCallArgs) as SchedulePlan;
-          const responseText = `I've created a "${schedule.title}" schedule for you with ${schedule.events.length} events. ${schedule.description}\n\nClick the button below to add these events to your calendar.`;
+          const parsedArgs = JSON.parse(toolCallArgs);
           
-          setMessages(prev => {
-            const updated = [...prev];
-            updated[updated.length - 1] = { 
-              role: "assistant", 
-              content: responseText,
-              schedule 
-            };
-            return updated;
-          });
+          if (toolCallName === "create_schedule") {
+            const schedule = parsedArgs as SchedulePlan;
+            const responseText = `I've created a "${schedule.title}" schedule with ${schedule.events.length} events. ${schedule.description}\n\nClick the button below to add these events to your calendar.`;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: responseText, schedule };
+              return updated;
+            });
+          } else if (toolCallName === "reschedule_events") {
+            const reschedule = parsedArgs as ReschedulePlan;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { 
+                role: "assistant", 
+                content: reschedule.message,
+                reschedule 
+              };
+              return updated;
+            });
+          } else if (toolCallName === "delete_events") {
+            const deletionPlan = parsedArgs as DeletionPlan;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { 
+                role: "assistant", 
+                content: deletionPlan.message,
+                deletions: deletionPlan 
+              };
+              return updated;
+            });
+          } else if (toolCallName === "create_mindmap") {
+            const mindmap = parsedArgs as MindMapData;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { 
+                role: "assistant", 
+                content: `Here's a mind map for "${mindmap.title}":`,
+                mindmap 
+              };
+              return updated;
+            });
+          }
         } catch (e) {
-          console.error("Failed to parse schedule:", e);
+          console.error("Failed to parse tool call:", e);
         }
       }
     } catch (error) {
@@ -167,10 +257,21 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
   const handleAddSchedule = (schedule: SchedulePlan) => {
     if (onAddSchedule) {
       onAddSchedule(schedule.events);
-      toast({
-        title: "Schedule Added",
-        description: `Added ${schedule.events.length} events to your calendar.`,
-      });
+      toast({ title: "Schedule Added", description: `Added ${schedule.events.length} events to your calendar.` });
+    }
+  };
+
+  const handleReschedule = (reschedule: ReschedulePlan) => {
+    if (onRescheduleEvents) {
+      onRescheduleEvents(reschedule.changes);
+      toast({ title: "Events Rescheduled", description: `Rescheduled ${reschedule.changes.length} events.` });
+    }
+  };
+
+  const handleDelete = (deletions: DeletionPlan) => {
+    if (onDeleteEvents) {
+      onDeleteEvents(deletions.deletions);
+      toast({ title: "Events Deleted", description: `Deleted ${deletions.deletions.length} events.` });
     }
   };
 
@@ -182,7 +283,7 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
           Chat with AI
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col p-0">
+      <DialogContent className="sm:max-w-[600px] h-[700px] flex flex-col p-0">
         <DialogHeader className="p-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Bot size={20} />
@@ -196,8 +297,12 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
               <div className="text-center text-muted-foreground py-8">
                 <Bot size={48} className="mx-auto mb-4 opacity-50" />
                 <p className="text-sm">Ask me anything about building better habits!</p>
-                <p className="text-xs mt-2">I can help with motivation, habit strategies, and creating schedules.</p>
-                <p className="text-xs mt-1 text-primary">Try: "Create a 30-day React learning schedule"</p>
+                <p className="text-xs mt-2">I can help with motivation, habit strategies, schedules, and mind maps.</p>
+                <div className="text-xs mt-3 space-y-1 text-primary">
+                  <p>"Create a 30-day React learning schedule"</p>
+                  <p>"Reschedule my morning events to afternoon"</p>
+                  <p>"Create a mind map about productivity"</p>
+                </div>
               </div>
             )}
             {messages.map((msg, idx) => (
@@ -207,7 +312,7 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
                     <Bot size={16} className="text-primary-foreground" />
                   </div>
                 )}
-                <div className="max-w-[80%] space-y-2">
+                <div className="max-w-[85%] space-y-2">
                   <div className={`rounded-lg px-3 py-2 text-sm ${
                     msg.role === "user" 
                       ? "bg-primary text-primary-foreground" 
@@ -219,14 +324,28 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
                   </div>
                   
                   {msg.schedule && onAddSchedule && (
-                    <Button 
-                      size="sm" 
-                      className="gap-2 w-full"
-                      onClick={() => handleAddSchedule(msg.schedule!)}
-                    >
+                    <Button size="sm" className="gap-2 w-full" onClick={() => handleAddSchedule(msg.schedule!)}>
                       <Calendar size={14} />
                       Add {msg.schedule.events.length} Events to Calendar
                     </Button>
+                  )}
+
+                  {msg.reschedule && onRescheduleEvents && (
+                    <Button size="sm" variant="secondary" className="gap-2 w-full" onClick={() => handleReschedule(msg.reschedule!)}>
+                      <RefreshCw size={14} />
+                      Apply {msg.reschedule.changes.length} Reschedule Changes
+                    </Button>
+                  )}
+
+                  {msg.deletions && onDeleteEvents && (
+                    <Button size="sm" variant="destructive" className="gap-2 w-full" onClick={() => handleDelete(msg.deletions!)}>
+                      <Trash2 size={14} />
+                      Delete {msg.deletions.deletions.length} Events
+                    </Button>
+                  )}
+
+                  {msg.mindmap && (
+                    <MindMap title={msg.mindmap.title} nodes={msg.mindmap.nodes} />
                   )}
                 </div>
                 {msg.role === "user" && (
@@ -245,7 +364,7 @@ export const AIChatDialog = ({ onAddSchedule }: AIChatDialogProps) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Ask about habits or request a schedule..."
+              placeholder="Ask about habits, schedules, or request a mind map..."
               disabled={isLoading}
             />
             <Button onClick={handleSend} disabled={isLoading || !input.trim()}>

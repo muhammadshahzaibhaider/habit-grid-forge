@@ -310,26 +310,61 @@ const Index = () => {
 
           <div className="border-2 border-border bg-secondary p-4 flex items-center justify-between">
             <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
-            <AIChatDialog onAddSchedule={(events) => {
-              const EVENT_COLORS = [
-                "hsl(var(--week-1))",
-                "hsl(var(--week-2))",
-                "hsl(var(--week-3))",
-                "hsl(var(--week-4))",
-                "hsl(var(--week-5))",
-              ];
-              events.forEach((event, idx) => {
-                const existingEvents = scheduleEvents[event.day] || [];
-                const newEvent = {
-                  id: Date.now() + idx,
-                  title: event.title,
-                  startTime: event.startTime,
-                  endTime: event.endTime,
-                  color: EVENT_COLORS[idx % EVENT_COLORS.length],
-                };
-                setScheduleEventsForDay(event.day, [...existingEvents, newEvent]);
-              });
-            }} />
+            <AIChatDialog 
+              existingEvents={scheduleEvents}
+              onAddSchedule={(events) => {
+                const EVENT_COLORS = [
+                  "hsl(var(--week-1))",
+                  "hsl(var(--week-2))",
+                  "hsl(var(--week-3))",
+                  "hsl(var(--week-4))",
+                  "hsl(var(--week-5))",
+                ];
+                events.forEach((event, idx) => {
+                  const existing = scheduleEvents[event.day] || [];
+                  const newEvent = {
+                    id: Date.now() + idx,
+                    title: event.title,
+                    startTime: event.startTime,
+                    endTime: event.endTime,
+                    color: EVENT_COLORS[idx % EVENT_COLORS.length],
+                  };
+                  setScheduleEventsForDay(event.day, [...existing, newEvent]);
+                });
+              }}
+              onRescheduleEvents={(changes) => {
+                changes.forEach((change) => {
+                  // Remove from original day
+                  const originalDayEvents = scheduleEvents[change.originalDay] || [];
+                  const eventToMove = originalDayEvents.find(e => e.id === change.eventId);
+                  if (eventToMove) {
+                    setScheduleEventsForDay(
+                      change.originalDay,
+                      originalDayEvents.filter(e => e.id !== change.eventId)
+                    );
+                    // Add to new day with updated times
+                    const newDayEvents = scheduleEvents[change.newDay] || [];
+                    setScheduleEventsForDay(change.newDay, [
+                      ...newDayEvents,
+                      {
+                        ...eventToMove,
+                        startTime: change.newStartTime,
+                        endTime: change.newEndTime,
+                      },
+                    ]);
+                  }
+                });
+              }}
+              onDeleteEvents={(deletions) => {
+                deletions.forEach((deletion) => {
+                  const dayEvents = scheduleEvents[deletion.day] || [];
+                  setScheduleEventsForDay(
+                    deletion.day,
+                    dayEvents.filter(e => e.id !== deletion.eventId)
+                  );
+                });
+              }}
+            />
           </div>
         </div>
 
