@@ -365,8 +365,10 @@ export const ChessGame = () => {
                           </div>
                         )}
                         {piece && (
-                          <span className={`text-3xl sm:text-4xl select-none drop-shadow transition-transform ${
-                            isWhitePiece(piece) ? 'text-white [text-shadow:_1px_1px_0_#000,_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000]' : 'text-zinc-900'
+                          <span className={`text-3xl sm:text-4xl select-none transition-transform ${
+                            isWhitePiece(piece) 
+                              ? 'text-white [text-shadow:_1px_1px_0_#000,_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_0_2px_2px_rgba(0,0,0,0.3)]' 
+                              : 'text-zinc-800 [text-shadow:_1px_1px_0_#fff,_-1px_-1px_0_#fff,_1px_-1px_0_#fff,_-1px_1px_0_#fff,_0_2px_2px_rgba(0,0,0,0.2)]'
                           } ${isSelected ? 'scale-110' : ''}`}>
                             {PIECE_SYMBOLS[piece]}
                           </span>
