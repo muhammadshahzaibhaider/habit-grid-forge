@@ -15,6 +15,11 @@ import { Notepad } from "@/components/Notepad";
 import { StarField } from "@/components/StarField";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChessGame } from "@/components/ChessGame";
+import { TicTacToe } from "@/components/TicTacToe";
+import { SnakeGame } from "@/components/SnakeGame";
+import { Game2048 } from "@/components/Game2048";
+import { MemoryGame } from "@/components/MemoryGame";
+import { Minesweeper } from "@/components/Minesweeper";
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -588,6 +593,11 @@ const Index = () => {
               </h3>
               <div className="space-y-2">
                 <ChessGame />
+                <TicTacToe />
+                <SnakeGame />
+                <Game2048 />
+                <MemoryGame />
+                <Minesweeper />
               </div>
             </div>
             
