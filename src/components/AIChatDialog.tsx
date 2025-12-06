@@ -7,10 +7,39 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   MessageSquare, Send, Bot, User, Loader2, Calendar, Trash2, RefreshCw,
   BookOpen, Brain, Target, Lightbulb, Clock, FileText, Sparkles, 
-  GraduationCap, Zap, HelpCircle, ListChecks, PenTool, Calculator
+  GraduationCap, Zap, HelpCircle, ListChecks, PenTool, Calculator, Mic, MicOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { MindMap } from "./MindMap";
+
+// Type declarations for Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -188,7 +217,9 @@ export const AIChatDialog = ({
   const [showFlashcard, setShowFlashcard] = useState<number | null>(null);
   const [quizAnswers, setQuizAnswers] = useState<{[key: number]: number}>({});
   const [showQuizResults, setShowQuizResults] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
 
   // Get current mode's messages
@@ -205,6 +236,89 @@ export const AIChatDialog = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setInput(prev => prev + finalTranscript);
+        } else if (interimTranscript) {
+          // Show interim results as user speaks
+          setInput(prev => {
+            const lastFinal = prev.lastIndexOf(' ');
+            return prev.substring(0, lastFinal + 1) + interimTranscript;
+          });
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error !== 'aborted') {
+          toast({
+            title: "Voice Input Error",
+            description: `Could not recognize speech: ${event.error}`,
+            variant: "destructive",
+          });
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, [toast]);
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      toast({
+        title: "Not Supported",
+        description: "Voice input is not supported in your browser. Try Chrome or Edge.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setInput('');
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast({
+        title: "🎤 Listening",
+        description: "Speak your question clearly...",
+      });
+    }
+  };
 
   const streamChat = async (userMessage: string) => {
     const userMsg: Message = { role: "user", content: userMessage };
@@ -693,13 +807,23 @@ export const AIChatDialog = ({
         {/* Input Area */}
         <div className="p-4 border-t bg-background/50 backdrop-blur-sm">
           <div className="flex gap-2">
+            <Button
+              variant={isListening ? "destructive" : "outline"}
+              size="icon"
+              onClick={toggleVoiceInput}
+              disabled={isLoading || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)}
+              className="shrink-0"
+              title={isListening ? "Stop listening" : "Start voice input"}
+            >
+              {isListening ? <MicOff size={18} className="animate-pulse" /> : <Mic size={18} />}
+            </Button>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-              placeholder={`Ask anything in ${currentMode.label} mode...`}
+              placeholder={isListening ? "Listening... speak now" : `Ask anything in ${currentMode.label} mode...`}
               disabled={isLoading}
-              className="bg-background"
+              className={`bg-background ${isListening ? 'border-destructive animate-pulse' : ''}`}
             />
             <Button 
               onClick={handleSend} 
@@ -709,6 +833,11 @@ export const AIChatDialog = ({
               {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             </Button>
           </div>
+          {isListening && (
+            <p className="text-xs text-muted-foreground mt-2 text-center animate-pulse">
+              🎤 Listening... Speak clearly and I'll transcribe your question
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>
