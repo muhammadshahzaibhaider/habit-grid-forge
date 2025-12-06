@@ -11,58 +11,105 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, existingEvents } = await req.json();
+    const { messages, existingEvents, mode = "coach" } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Processing chat request with", messages.length, "messages");
+    console.log("Processing chat request with", messages.length, "messages in mode:", mode);
 
     const eventsContext = existingEvents && Object.keys(existingEvents).length > 0 
       ? `\n\nCurrent scheduled events:\n${JSON.stringify(existingEvents, null, 2)}`
       : "\n\nNo events currently scheduled.";
 
-    const systemPrompt = `You are a helpful Habit Coach AI assistant. You help users build better habits, stay motivated, and achieve their goals.
+    // Mode-specific system prompts
+    const modePrompts: Record<string, string> = {
+      coach: `You are an expert Habit Coach and Productivity Mentor for students. Your role is to:
+- Help students build better study habits and routines
+- Provide motivation and accountability strategies
+- Create personalized study schedules and learning plans
+- Offer practical tips for time management and focus
+- Help break bad habits like procrastination
 
-You have access to the user's calendar and can:
-1. CREATE new schedules/events using the create_schedule tool
-2. RESCHEDULE existing events using the reschedule_events tool
-3. DELETE events using the delete_events tool
-4. GENERATE mind maps for concepts using the create_mindmap tool
+Be encouraging, practical, and specific. Use emojis occasionally to be engaging.`,
+      
+      study: `You are an expert Study Assistant and Learning Companion. Your role is to:
+- Help students understand complex topics
+- Create comprehensive summaries and study notes
+- Generate flashcards for memorization
+- Create mind maps for visual learning
+- Break down difficult concepts into simple steps
+- Provide study strategies and memory techniques
 
-When users ask you to create a schedule or learning plan, use create_schedule to generate events.
-When users ask to reschedule or move events, use reschedule_events with the event IDs.
-When users ask to delete or remove events, use delete_events with the event IDs.
-When users ask for a mind map or concept visualization, use create_mindmap to generate it.
+Be clear, educational, and supportive. Use examples and analogies.`,
+      
+      quiz: `You are an expert Quiz Master and Knowledge Tester. Your role is to:
+- Create challenging but fair quiz questions
+- Test students on various subjects and topics
+- Provide detailed explanations for correct answers
+- Generate practice problems for math and science
+- Create vocabulary tests and language exercises
+- Assess understanding and identify knowledge gaps
 
-For mind maps, create a hierarchical structure with a central topic and branching subtopics. Each node should have a unique id, label, and optional children.
+Make quizzes engaging and educational. Always explain why answers are correct.`,
+      
+      explain: `You are an expert Explainer and Teacher. Your role is to:
+- Explain complex topics in simple, understandable ways
+- Use analogies and real-world examples
+- Break down processes step by step
+- Compare and contrast concepts
+- Answer "why" and "how" questions thoroughly
+- Adapt explanations to different learning levels
+
+Be patient, thorough, and use multiple approaches to explain concepts.`
+    };
+
+    const systemPrompt = `${modePrompts[mode] || modePrompts.coach}
+
+You have powerful tools to help students:
+1. CREATE study schedules using create_schedule
+2. RESCHEDULE events using reschedule_events
+3. DELETE events using delete_events
+4. GENERATE mind maps using create_mindmap
+5. CREATE flashcards using create_flashcards (for memorization)
+6. GENERATE summaries using create_summary (for study notes)
+7. CREATE quizzes using create_quiz (for testing knowledge)
+
+Use the appropriate tool when students ask for:
+- Study schedules, learning plans, or timetables → create_schedule
+- Moving or rescheduling events → reschedule_events
+- Removing or canceling events → delete_events
+- Mind maps, concept maps, or visual breakdowns → create_mindmap
+- Flashcards, study cards, or memorization help → create_flashcards
+- Summaries, key points, or study notes → create_summary
+- Quizzes, tests, or knowledge checks → create_quiz
+
 ${eventsContext}
 
-Keep your conversational responses clear and concise.`;
+Remember: You're helping students succeed. Be supportive, practical, and encouraging!`;
 
     const tools = [
       {
         type: "function",
         function: {
           name: "create_schedule",
-          description: "Create a schedule with events that can be added to the user's calendar. Use this when users ask for a schedule, learning plan, study plan, or any time-based planning.",
+          description: "Create a study schedule with events. Use for learning plans, study schedules, or any time-based planning.",
           parameters: {
             type: "object",
             properties: {
-              title: { type: "string", description: "Title of the overall schedule/plan" },
-              description: { type: "string", description: "Brief description of the schedule" },
+              title: { type: "string", description: "Title of the schedule" },
+              description: { type: "string", description: "Brief description" },
               events: {
                 type: "array",
-                description: "Array of events for the schedule (create 5-10 events for the first week)",
                 items: {
                   type: "object",
                   properties: {
-                    day: { type: "number", description: "Day of the month (1-31)" },
+                    day: { type: "number", description: "Day of month (1-31)" },
                     title: { type: "string", description: "Event title" },
-                    startTime: { type: "string", description: "Start time in HH:MM format (24h)" },
-                    endTime: { type: "string", description: "End time in HH:MM format (24h)" }
+                    startTime: { type: "string", description: "Start time HH:MM" },
+                    endTime: { type: "string", description: "End time HH:MM" }
                   },
                   required: ["day", "title", "startTime", "endTime"]
                 }
@@ -76,26 +123,25 @@ Keep your conversational responses clear and concise.`;
         type: "function",
         function: {
           name: "reschedule_events",
-          description: "Reschedule existing events to new times or days. Use when users want to move, reschedule, or change timing of events.",
+          description: "Reschedule existing events to new times or days.",
           parameters: {
             type: "object",
             properties: {
               changes: {
                 type: "array",
-                description: "Array of event changes",
                 items: {
                   type: "object",
                   properties: {
-                    eventId: { type: "number", description: "ID of the event to reschedule" },
-                    originalDay: { type: "number", description: "Original day of the event" },
-                    newDay: { type: "number", description: "New day for the event (1-31)" },
-                    newStartTime: { type: "string", description: "New start time in HH:MM format (24h)" },
-                    newEndTime: { type: "string", description: "New end time in HH:MM format (24h)" }
+                    eventId: { type: "number" },
+                    originalDay: { type: "number" },
+                    newDay: { type: "number" },
+                    newStartTime: { type: "string" },
+                    newEndTime: { type: "string" }
                   },
                   required: ["eventId", "originalDay", "newDay", "newStartTime", "newEndTime"]
                 }
               },
-              message: { type: "string", description: "Confirmation message to show the user" }
+              message: { type: "string" }
             },
             required: ["changes", "message"]
           }
@@ -105,23 +151,22 @@ Keep your conversational responses clear and concise.`;
         type: "function",
         function: {
           name: "delete_events",
-          description: "Delete events from the calendar. Use when users want to remove, delete, or cancel events.",
+          description: "Delete events from the calendar.",
           parameters: {
             type: "object",
             properties: {
               deletions: {
                 type: "array",
-                description: "Array of events to delete",
                 items: {
                   type: "object",
                   properties: {
-                    eventId: { type: "number", description: "ID of the event to delete" },
-                    day: { type: "number", description: "Day where the event is scheduled" }
+                    eventId: { type: "number" },
+                    day: { type: "number" }
                   },
                   required: ["eventId", "day"]
                 }
               },
-              message: { type: "string", description: "Confirmation message to show the user" }
+              message: { type: "string" }
             },
             required: ["deletions", "message"]
           }
@@ -131,27 +176,104 @@ Keep your conversational responses clear and concise.`;
         type: "function",
         function: {
           name: "create_mindmap",
-          description: "Create a mind map visualization for a concept or topic. Use when users ask for a mind map, concept map, or visual breakdown of a topic.",
+          description: "Create a mind map for a concept or topic.",
           parameters: {
             type: "object",
             properties: {
-              title: { type: "string", description: "Title of the mind map" },
+              title: { type: "string" },
               nodes: {
                 type: "array",
-                description: "Array of mind map nodes",
                 items: {
                   type: "object",
                   properties: {
-                    id: { type: "string", description: "Unique node ID" },
-                    label: { type: "string", description: "Node label text" },
-                    parentId: { type: "string", description: "Parent node ID (null for root)" },
-                    color: { type: "string", description: "Node color (optional)" }
+                    id: { type: "string" },
+                    label: { type: "string" },
+                    parentId: { type: "string", nullable: true },
+                    color: { type: "string" }
                   },
                   required: ["id", "label"]
                 }
               }
             },
             required: ["title", "nodes"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_flashcards",
+          description: "Create flashcards for studying and memorization. Use when students ask for flashcards, study cards, or memorization help.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Title of the flashcard set" },
+              cards: {
+                type: "array",
+                description: "Array of flashcards (create 5-10 cards)",
+                items: {
+                  type: "object",
+                  properties: {
+                    front: { type: "string", description: "Question or term on front" },
+                    back: { type: "string", description: "Answer or definition on back" }
+                  },
+                  required: ["front", "back"]
+                }
+              }
+            },
+            required: ["title", "cards"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_summary",
+          description: "Create a summary with key points. Use when students ask for summaries, key points, or study notes.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Title of the summary" },
+              keyPoints: {
+                type: "array",
+                description: "List of 5-8 key points",
+                items: { type: "string" }
+              },
+              summary: { type: "string", description: "Brief overall summary paragraph" }
+            },
+            required: ["title", "keyPoints", "summary"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_quiz",
+          description: "Create a quiz with multiple choice questions. Use when students want to test their knowledge.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Title of the quiz" },
+              questions: {
+                type: "array",
+                description: "Array of quiz questions (create 3-5 questions)",
+                items: {
+                  type: "object",
+                  properties: {
+                    question: { type: "string", description: "The question" },
+                    options: {
+                      type: "array",
+                      description: "4 answer options",
+                      items: { type: "string" }
+                    },
+                    correctAnswer: { type: "number", description: "Index of correct answer (0-3)" },
+                    explanation: { type: "string", description: "Explanation of why the answer is correct" }
+                  },
+                  required: ["question", "options", "correctAnswer", "explanation"]
+                }
+              }
+            },
+            required: ["title", "questions"]
           }
         }
       }
@@ -176,20 +298,20 @@ Keep your conversational responses clear and concise.`;
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add credits to your workspace." }), {
+        return new Response(JSON.stringify({ error: "Credits needed. Please add credits to continue using AI features." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const text = await response.text();
       console.error("AI gateway error:", response.status, text);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
+      return new Response(JSON.stringify({ error: "AI service temporarily unavailable. Please try again." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
