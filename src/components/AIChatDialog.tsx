@@ -175,7 +175,13 @@ export const AIChatDialog = ({
     }
   };
   
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Separate message history for each mode
+  const [messagesByMode, setMessagesByMode] = useState<Record<AIMode, Message[]>>({
+    coach: [],
+    study: [],
+    quiz: [],
+    explain: [],
+  });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<AIMode>("coach");
@@ -184,6 +190,15 @@ export const AIChatDialog = ({
   const [showQuizResults, setShowQuizResults] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Get current mode's messages
+  const messages = messagesByMode[mode];
+  const setMessages = (updater: Message[] | ((prev: Message[]) => Message[])) => {
+    setMessagesByMode(prev => ({
+      ...prev,
+      [mode]: typeof updater === 'function' ? updater(prev[mode]) : updater
+    }));
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
