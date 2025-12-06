@@ -3,7 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Send, Bot, User, Loader2, Calendar, Trash2, RefreshCw } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  MessageSquare, Send, Bot, User, Loader2, Calendar, Trash2, RefreshCw,
+  BookOpen, Brain, Target, Lightbulb, Clock, FileText, Sparkles, 
+  GraduationCap, Zap, HelpCircle, ListChecks, PenTool, Calculator
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { MindMap } from "./MindMap";
 
@@ -14,6 +19,9 @@ interface Message {
   reschedule?: ReschedulePlan;
   deletions?: DeletionPlan;
   mindmap?: MindMapData;
+  flashcards?: FlashcardData;
+  summary?: SummaryData;
+  quiz?: QuizData;
 }
 
 interface ScheduleEvent {
@@ -64,6 +72,34 @@ interface MindMapData {
   nodes: MindMapNode[];
 }
 
+interface Flashcard {
+  front: string;
+  back: string;
+}
+
+interface FlashcardData {
+  title: string;
+  cards: Flashcard[];
+}
+
+interface SummaryData {
+  title: string;
+  keyPoints: string[];
+  summary: string;
+}
+
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
+
+interface QuizData {
+  title: string;
+  questions: QuizQuestion[];
+}
+
 interface ExistingEvent {
   id: number;
   title: string;
@@ -82,6 +118,42 @@ interface AIChatDialogProps {
   showTrigger?: boolean;
 }
 
+type AIMode = "coach" | "study" | "quiz" | "explain";
+
+const AI_MODES = [
+  { id: "coach" as AIMode, label: "Coach", icon: Target, description: "Habit & motivation coaching" },
+  { id: "study" as AIMode, label: "Study", icon: BookOpen, description: "Study helper & notes" },
+  { id: "quiz" as AIMode, label: "Quiz", icon: HelpCircle, description: "Test your knowledge" },
+  { id: "explain" as AIMode, label: "Explain", icon: Lightbulb, description: "Explain any topic" },
+];
+
+const QUICK_ACTIONS = {
+  coach: [
+    { label: "Create Study Schedule", prompt: "Create a 7-day study schedule for me with 2-hour daily sessions", icon: Calendar },
+    { label: "Motivation Tips", prompt: "Give me 5 powerful motivation tips to stay focused while studying", icon: Zap },
+    { label: "Break Bad Habits", prompt: "How can I break the habit of procrastination?", icon: Target },
+    { label: "Morning Routine", prompt: "Create an ideal morning routine for a student", icon: Clock },
+  ],
+  study: [
+    { label: "Summarize Topic", prompt: "Summarize the key concepts of [topic]", icon: FileText },
+    { label: "Create Flashcards", prompt: "Create flashcards for studying [topic]", icon: PenTool },
+    { label: "Mind Map", prompt: "Create a mind map for [topic]", icon: Brain },
+    { label: "Study Plan", prompt: "Create a study plan for my upcoming exam in [subject]", icon: ListChecks },
+  ],
+  quiz: [
+    { label: "Quick Quiz", prompt: "Quiz me on [topic] with 5 multiple choice questions", icon: HelpCircle },
+    { label: "Math Practice", prompt: "Give me 5 practice problems for [math topic]", icon: Calculator },
+    { label: "Vocabulary Test", prompt: "Test my vocabulary with 10 words related to [subject]", icon: BookOpen },
+    { label: "Concept Check", prompt: "Ask me questions to check my understanding of [topic]", icon: Brain },
+  ],
+  explain: [
+    { label: "Explain Simply", prompt: "Explain [topic] like I'm 10 years old", icon: Lightbulb },
+    { label: "Step by Step", prompt: "Explain step by step how to solve [problem]", icon: ListChecks },
+    { label: "Real Examples", prompt: "Give me real-world examples of [concept]", icon: Sparkles },
+    { label: "Compare & Contrast", prompt: "Compare and contrast [topic A] vs [topic B]", icon: Brain },
+  ],
+};
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export const AIChatDialog = ({ 
@@ -94,7 +166,6 @@ export const AIChatDialog = ({
   showTrigger = true
 }: AIChatDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
-  
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = (value: boolean) => {
     if (onOpenChange) {
@@ -103,9 +174,14 @@ export const AIChatDialog = ({
       setInternalOpen(value);
     }
   };
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<AIMode>("coach");
+  const [showFlashcard, setShowFlashcard] = useState<number | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<{[key: number]: number}>({});
+  const [showQuizResults, setShowQuizResults] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -130,12 +206,19 @@ export const AIChatDialog = ({
         },
         body: JSON.stringify({ 
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          existingEvents 
+          existingEvents,
+          mode
         }),
       });
 
       if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({}));
+        if (resp.status === 429) {
+          throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        if (resp.status === 402) {
+          throw new Error("Credits needed. Please add credits to continue.");
+        }
         throw new Error(errorData.error || `Request failed with status ${resp.status}`);
       }
 
@@ -205,7 +288,7 @@ export const AIChatDialog = ({
           
           if (toolCallName === "create_schedule") {
             const schedule = parsedArgs as SchedulePlan;
-            const responseText = `I've created a "${schedule.title}" schedule with ${schedule.events.length} events. ${schedule.description}\n\nClick the button below to add these events to your calendar.`;
+            const responseText = `📅 **${schedule.title}**\n\n${schedule.description}\n\nI've prepared ${schedule.events.length} study sessions for you!`;
             setMessages(prev => {
               const updated = [...prev];
               updated[updated.length - 1] = { role: "assistant", content: responseText, schedule };
@@ -215,35 +298,47 @@ export const AIChatDialog = ({
             const reschedule = parsedArgs as ReschedulePlan;
             setMessages(prev => {
               const updated = [...prev];
-              updated[updated.length - 1] = { 
-                role: "assistant", 
-                content: reschedule.message,
-                reschedule 
-              };
+              updated[updated.length - 1] = { role: "assistant", content: reschedule.message, reschedule };
               return updated;
             });
           } else if (toolCallName === "delete_events") {
             const deletionPlan = parsedArgs as DeletionPlan;
             setMessages(prev => {
               const updated = [...prev];
-              updated[updated.length - 1] = { 
-                role: "assistant", 
-                content: deletionPlan.message,
-                deletions: deletionPlan 
-              };
+              updated[updated.length - 1] = { role: "assistant", content: deletionPlan.message, deletions: deletionPlan };
               return updated;
             });
           } else if (toolCallName === "create_mindmap") {
             const mindmap = parsedArgs as MindMapData;
             setMessages(prev => {
               const updated = [...prev];
-              updated[updated.length - 1] = { 
-                role: "assistant", 
-                content: `Here's a mind map for "${mindmap.title}":`,
-                mindmap 
-              };
+              updated[updated.length - 1] = { role: "assistant", content: `🧠 **Mind Map: ${mindmap.title}**`, mindmap };
               return updated;
             });
+          } else if (toolCallName === "create_flashcards") {
+            const flashcards = parsedArgs as FlashcardData;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: `📝 **Flashcards: ${flashcards.title}**\n\nClick cards to flip them!`, flashcards };
+              return updated;
+            });
+            setShowFlashcard(null);
+          } else if (toolCallName === "create_summary") {
+            const summary = parsedArgs as SummaryData;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: `📚 **Summary: ${summary.title}**`, summary };
+              return updated;
+            });
+          } else if (toolCallName === "create_quiz") {
+            const quiz = parsedArgs as QuizData;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: `🎯 **Quiz: ${quiz.title}**\n\nSelect your answers below!`, quiz };
+              return updated;
+            });
+            setQuizAnswers({});
+            setShowQuizResults(false);
           }
         } catch (e) {
           console.error("Failed to parse tool call:", e);
@@ -269,26 +364,49 @@ export const AIChatDialog = ({
     streamChat(message);
   };
 
+  const handleQuickAction = (prompt: string) => {
+    if (prompt.includes("[")) {
+      setInput(prompt);
+    } else {
+      streamChat(prompt);
+    }
+  };
+
   const handleAddSchedule = (schedule: SchedulePlan) => {
     if (onAddSchedule) {
       onAddSchedule(schedule.events);
-      toast({ title: "Schedule Added", description: `Added ${schedule.events.length} events to your calendar.` });
+      toast({ title: "✅ Schedule Added!", description: `Added ${schedule.events.length} events to your calendar.` });
     }
   };
 
   const handleReschedule = (reschedule: ReschedulePlan) => {
     if (onRescheduleEvents) {
       onRescheduleEvents(reschedule.changes);
-      toast({ title: "Events Rescheduled", description: `Rescheduled ${reschedule.changes.length} events.` });
+      toast({ title: "✅ Events Rescheduled", description: `Rescheduled ${reschedule.changes.length} events.` });
     }
   };
 
   const handleDelete = (deletions: DeletionPlan) => {
     if (onDeleteEvents) {
       onDeleteEvents(deletions.deletions);
-      toast({ title: "Events Deleted", description: `Deleted ${deletions.deletions.length} events.` });
+      toast({ title: "✅ Events Deleted", description: `Deleted ${deletions.deletions.length} events.` });
     }
   };
+
+  const handleQuizAnswer = (questionIndex: number, answerIndex: number) => {
+    setQuizAnswers(prev => ({ ...prev, [questionIndex]: answerIndex }));
+  };
+
+  const calculateQuizScore = (quiz: QuizData) => {
+    let correct = 0;
+    quiz.questions.forEach((q, i) => {
+      if (quizAnswers[i] === q.correctAnswer) correct++;
+    });
+    return { correct, total: quiz.questions.length };
+  };
+
+  const currentMode = AI_MODES.find(m => m.id === mode)!;
+  const currentQuickActions = QUICK_ACTIONS[mode];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -300,60 +418,123 @@ export const AIChatDialog = ({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-[600px] h-[700px] flex flex-col p-0">
-        <DialogHeader className="p-4 border-b">
+      <DialogContent className="sm:max-w-[700px] h-[85vh] max-h-[800px] flex flex-col p-0 gap-0">
+        {/* Header with Mode Selection */}
+        <DialogHeader className="p-4 pb-2 border-b space-y-3">
           <DialogTitle className="flex items-center gap-2">
-            <Bot size={20} />
-            Habit Coach AI
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <GraduationCap size={20} className="text-primary-foreground" />
+            </div>
+            <div>
+              <span className="text-lg font-bold">AI Study Assistant</span>
+              <p className="text-xs text-muted-foreground font-normal">Your personal learning companion</p>
+            </div>
           </DialogTitle>
+          
+          <Tabs value={mode} onValueChange={(v) => setMode(v as AIMode)} className="w-full">
+            <TabsList className="grid grid-cols-4 w-full h-auto p-1 bg-muted/50">
+              {AI_MODES.map((m) => (
+                <TabsTrigger 
+                  key={m.id} 
+                  value={m.id}
+                  className="flex flex-col items-center gap-1 py-2 px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                >
+                  <m.icon size={16} />
+                  <span className="text-xs font-medium">{m.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </DialogHeader>
         
+        {/* Chat Area */}
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                <Bot size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-sm">Ask me anything about building better habits!</p>
-                <p className="text-xs mt-2">I can help with motivation, habit strategies, schedules, and mind maps.</p>
-                <div className="text-xs mt-3 space-y-1 text-primary">
-                  <p>"Create a 30-day React learning schedule"</p>
-                  <p>"Reschedule my morning events to afternoon"</p>
-                  <p>"Create a mind map about productivity"</p>
+              <div className="space-y-4">
+                {/* Welcome Message */}
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <currentMode.icon size={32} className="text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-lg">{currentMode.label} Mode</h3>
+                  <p className="text-sm text-muted-foreground">{currentMode.description}</p>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Quick Actions</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {currentQuickActions.map((action, idx) => (
+                      <Button
+                        key={idx}
+                        variant="outline"
+                        size="sm"
+                        className="h-auto py-3 px-3 justify-start text-left gap-2 hover:bg-primary/5 hover:border-primary/30 transition-all"
+                        onClick={() => handleQuickAction(action.prompt)}
+                      >
+                        <action.icon size={16} className="shrink-0 text-primary" />
+                        <span className="text-xs font-medium">{action.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tips */}
+                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-medium flex items-center gap-1">
+                    <Sparkles size={12} className="text-primary" />
+                    Pro Tips
+                  </p>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• Be specific about your subject or topic</li>
+                    <li>• Ask for examples to understand better</li>
+                    <li>• Request flashcards for memorization</li>
+                    <li>• Use quizzes to test your knowledge</li>
+                  </ul>
                 </div>
               </div>
             )}
+
+            {/* Messages */}
             {messages.map((msg, idx) => (
-              <div key={idx} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={idx} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 {msg.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shrink-0">
                     <Bot size={16} className="text-primary-foreground" />
                   </div>
                 )}
-                <div className="max-w-[85%] space-y-2">
-                  <div className={`rounded-lg px-3 py-2 text-sm ${
+                <div className="max-w-[85%] space-y-3">
+                  <div className={`rounded-xl px-4 py-3 text-sm ${
                     msg.role === "user" 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-muted"
+                      ? "bg-primary text-primary-foreground rounded-br-sm" 
+                      : "bg-muted rounded-bl-sm"
                   }`}>
                     {msg.content || (isLoading && msg.role === "assistant" ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <div className="flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        <span className="text-xs">Thinking...</span>
+                      </div>
                     ) : null)}
                   </div>
                   
+                  {/* Schedule Button */}
                   {msg.schedule && onAddSchedule && (
-                    <Button size="sm" className="gap-2 w-full" onClick={() => handleAddSchedule(msg.schedule!)}>
+                    <Button size="sm" className="gap-2 w-full bg-green-600 hover:bg-green-700" onClick={() => handleAddSchedule(msg.schedule!)}>
                       <Calendar size={14} />
                       Add {msg.schedule.events.length} Events to Calendar
                     </Button>
                   )}
 
+                  {/* Reschedule Button */}
                   {msg.reschedule && onRescheduleEvents && (
                     <Button size="sm" variant="secondary" className="gap-2 w-full" onClick={() => handleReschedule(msg.reschedule!)}>
                       <RefreshCw size={14} />
-                      Apply {msg.reschedule.changes.length} Reschedule Changes
+                      Apply {msg.reschedule.changes.length} Changes
                     </Button>
                   )}
 
+                  {/* Delete Button */}
                   {msg.deletions && onDeleteEvents && (
                     <Button size="sm" variant="destructive" className="gap-2 w-full" onClick={() => handleDelete(msg.deletions!)}>
                       <Trash2 size={14} />
@@ -361,12 +542,131 @@ export const AIChatDialog = ({
                     </Button>
                   )}
 
+                  {/* Mind Map */}
                   {msg.mindmap && (
                     <MindMap title={msg.mindmap.title} nodes={msg.mindmap.nodes} />
                   )}
+
+                  {/* Flashcards */}
+                  {msg.flashcards && (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {msg.flashcards.cards.map((card, cardIdx) => (
+                          <div
+                            key={cardIdx}
+                            onClick={() => setShowFlashcard(showFlashcard === cardIdx ? null : cardIdx)}
+                            className={`cursor-pointer p-3 rounded-lg border-2 transition-all duration-300 min-h-[80px] flex items-center justify-center text-center text-sm ${
+                              showFlashcard === cardIdx 
+                                ? 'bg-primary/10 border-primary' 
+                                : 'bg-card border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <span className="font-medium">
+                              {showFlashcard === cardIdx ? card.back : card.front}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-center text-muted-foreground">Click cards to flip</p>
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  {msg.summary && (
+                    <div className="bg-card border rounded-lg p-4 space-y-3">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                          <FileText size={14} className="text-primary" />
+                          Key Points
+                        </h4>
+                        <ul className="space-y-1">
+                          {msg.summary.keyPoints.map((point, i) => (
+                            <li key={i} className="text-sm flex items-start gap-2">
+                              <span className="text-primary mt-1">•</span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-muted-foreground">{msg.summary.summary}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quiz */}
+                  {msg.quiz && (
+                    <div className="bg-card border rounded-lg p-4 space-y-4">
+                      {msg.quiz.questions.map((q, qIdx) => (
+                        <div key={qIdx} className="space-y-2">
+                          <p className="font-medium text-sm">
+                            {qIdx + 1}. {q.question}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {q.options.map((opt, optIdx) => {
+                              const isSelected = quizAnswers[qIdx] === optIdx;
+                              const isCorrect = q.correctAnswer === optIdx;
+                              const showResult = showQuizResults && isSelected;
+                              
+                              return (
+                                <Button
+                                  key={optIdx}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={showQuizResults}
+                                  className={`h-auto py-2 px-3 text-left justify-start text-xs transition-all ${
+                                    showResult 
+                                      ? isCorrect 
+                                        ? 'bg-green-500/20 border-green-500 text-green-700' 
+                                        : 'bg-red-500/20 border-red-500 text-red-700'
+                                      : isSelected 
+                                        ? 'bg-primary/10 border-primary' 
+                                        : ''
+                                  } ${showQuizResults && isCorrect && !isSelected ? 'border-green-500' : ''}`}
+                                  onClick={() => handleQuizAnswer(qIdx, optIdx)}
+                                >
+                                  {opt}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          {showQuizResults && quizAnswers[qIdx] !== undefined && quizAnswers[qIdx] !== q.correctAnswer && (
+                            <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                              💡 {q.explanation}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {!showQuizResults && Object.keys(quizAnswers).length === msg.quiz.questions.length && (
+                        <Button 
+                          className="w-full gap-2" 
+                          onClick={() => setShowQuizResults(true)}
+                        >
+                          <Sparkles size={14} />
+                          Check Answers
+                        </Button>
+                      )}
+                      
+                      {showQuizResults && (
+                        <div className="text-center p-3 bg-primary/10 rounded-lg">
+                          <p className="font-bold text-lg">
+                            Score: {calculateQuizScore(msg.quiz).correct}/{calculateQuizScore(msg.quiz).total}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {calculateQuizScore(msg.quiz).correct === calculateQuizScore(msg.quiz).total 
+                              ? "🎉 Perfect score!" 
+                              : calculateQuizScore(msg.quiz).correct >= calculateQuizScore(msg.quiz).total / 2 
+                                ? "👍 Good job! Keep practicing!" 
+                                : "📚 Review the material and try again!"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {msg.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                     <User size={16} />
                   </div>
                 )}
@@ -375,17 +675,23 @@ export const AIChatDialog = ({
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t">
+        {/* Input Area */}
+        <div className="p-4 border-t bg-background/50 backdrop-blur-sm">
           <div className="flex gap-2">
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Ask about habits, schedules, or request a mind map..."
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+              placeholder={`Ask anything in ${currentMode.label} mode...`}
               disabled={isLoading}
+              className="bg-background"
             />
-            <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
-              {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            <Button 
+              onClick={handleSend} 
+              disabled={isLoading || !input.trim()}
+              className="px-4"
+            >
+              {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             </Button>
           </div>
         </div>
