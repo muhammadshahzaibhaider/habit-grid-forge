@@ -13,6 +13,7 @@ import { Timer } from "@/components/Timer";
 import { Stopwatch } from "@/components/Stopwatch";
 import { Notepad } from "@/components/Notepad";
 import { StarField } from "@/components/StarField";
+import { Snowfall } from "@/components/Snowfall";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChessGame } from "@/components/ChessGame";
 import { TicTacToe } from "@/components/TicTacToe";
@@ -282,7 +283,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 relative overflow-hidden">
-      <StarField />
+      {/* Winter months (Dec, Jan, Feb) show snowfall, otherwise stars */}
+      {monthIndex === 11 || monthIndex === 0 || monthIndex === 1 ? <Snowfall /> : <StarField />}
       <AICoach3D onCoachClick={() => setAiCoachOpen(true)} />
       <AIChatDialog
         open={aiCoachOpen}
