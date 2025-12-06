@@ -1,14 +1,29 @@
-import { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useRef, useState, useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float } from "@react-three/drei";
 import * as THREE from "three";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Settings2 } from "lucide-react";
 
 interface FaceProps {
   onClick: () => void;
+  primaryColor: string;
+  accentColor: string;
 }
 
+// Helper to get CSS variable value
+const getCSSColor = (varName: string): string => {
+  const style = getComputedStyle(document.documentElement);
+  const value = style.getPropertyValue(varName).trim();
+  if (value) {
+    const [h, s, l] = value.split(' ').map(v => parseFloat(v));
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  }
+  return '#4ade80';
+};
+
 // Character 1: Friendly Robot Face
-const RobotFace = ({ onClick }: FaceProps) => {
+const RobotFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
   const eyeLeftRef = useRef<THREE.Mesh>(null);
   const eyeRightRef = useRef<THREE.Mesh>(null);
@@ -18,7 +33,6 @@ const RobotFace = ({ onClick }: FaceProps) => {
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.2) * 0.05;
       groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.08;
     }
-    // Blinking effect
     if (eyeLeftRef.current && eyeRightRef.current) {
       const blink = Math.sin(state.clock.elapsedTime * 0.5) > 0.95 ? 0.1 : 1;
       eyeLeftRef.current.scale.y = blink;
@@ -29,35 +43,29 @@ const RobotFace = ({ onClick }: FaceProps) => {
   return (
     <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.3}>
       <group ref={groupRef} onClick={onClick}>
-        {/* Head */}
         <mesh>
           <boxGeometry args={[1.2, 1, 0.8]} />
-          <meshStandardMaterial color="#4ade80" metalness={0.3} roughness={0.4} />
+          <meshStandardMaterial color={primaryColor} metalness={0.3} roughness={0.4} />
         </mesh>
-        {/* Face screen */}
         <mesh position={[0, 0, 0.41]}>
           <boxGeometry args={[1, 0.8, 0.02]} />
           <meshStandardMaterial color="#0f172a" metalness={0.9} roughness={0.1} />
         </mesh>
-        {/* Left Eye */}
         <mesh ref={eyeLeftRef} position={[-0.25, 0.1, 0.43]}>
           <circleGeometry args={[0.15, 32]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.8} />
         </mesh>
-        {/* Right Eye */}
         <mesh ref={eyeRightRef} position={[0.25, 0.1, 0.43]}>
           <circleGeometry args={[0.15, 32]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.8} />
         </mesh>
-        {/* Smile */}
         <mesh position={[0, -0.2, 0.43]} rotation={[0, 0, Math.PI]}>
           <torusGeometry args={[0.15, 0.03, 8, 16, Math.PI]} />
-          <meshStandardMaterial color="#4ade80" emissive="#4ade80" emissiveIntensity={1} />
+          <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={1} />
         </mesh>
-        {/* Antenna */}
         <mesh position={[0, 0.6, 0]}>
           <cylinderGeometry args={[0.03, 0.04, 0.3, 8]} />
-          <meshStandardMaterial color="#22c55e" metalness={0.6} />
+          <meshStandardMaterial color={accentColor} metalness={0.6} />
         </mesh>
         <mesh position={[0, 0.8, 0]}>
           <sphereGeometry args={[0.1, 16, 16]} />
@@ -69,7 +77,7 @@ const RobotFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 2: Cute Round Face
-const CuteFace = ({ onClick }: FaceProps) => {
+const CuteFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -84,9 +92,8 @@ const CuteFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.7, 32, 32]} />
-          <meshStandardMaterial color="#fbbf24" metalness={0.1} roughness={0.5} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.5} />
         </mesh>
-        {/* Cheeks */}
         <mesh position={[-0.4, -0.15, 0.5]}>
           <circleGeometry args={[0.12, 32]} />
           <meshStandardMaterial color="#f87171" transparent opacity={0.6} />
@@ -95,7 +102,6 @@ const CuteFace = ({ onClick }: FaceProps) => {
           <circleGeometry args={[0.12, 32]} />
           <meshStandardMaterial color="#f87171" transparent opacity={0.6} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.2, 0.15, 0.65]}>
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -104,7 +110,6 @@ const CuteFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Eye shine */}
         <mesh position={[-0.18, 0.18, 0.76]}>
           <sphereGeometry args={[0.04, 8, 8]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
@@ -113,7 +118,6 @@ const CuteFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.04, 8, 8]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
         </mesh>
-        {/* Smile */}
         <mesh position={[0, -0.15, 0.65]} rotation={[0, 0, Math.PI]}>
           <torusGeometry args={[0.12, 0.025, 8, 16, Math.PI]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -124,7 +128,7 @@ const CuteFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 3: Alien Face
-const AlienFace = ({ onClick }: FaceProps) => {
+const AlienFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -138,9 +142,8 @@ const AlienFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.6, 32, 32]} />
-          <meshStandardMaterial color="#a855f7" metalness={0.2} roughness={0.4} />
+          <meshStandardMaterial color={primaryColor} metalness={0.2} roughness={0.4} />
         </mesh>
-        {/* Big eyes */}
         <mesh position={[-0.25, 0.1, 0.45]}>
           <sphereGeometry args={[0.2, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -149,31 +152,29 @@ const AlienFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.2, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Eye glow */}
         <mesh position={[-0.25, 0.1, 0.65]}>
           <circleGeometry args={[0.08, 16]} />
-          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={2} />
+          <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={2} />
         </mesh>
         <mesh position={[0.25, 0.1, 0.65]}>
           <circleGeometry args={[0.08, 16]} />
-          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={2} />
+          <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={2} />
         </mesh>
-        {/* Antennae */}
         <mesh position={[-0.3, 0.6, 0]} rotation={[0, 0, 0.3]}>
           <cylinderGeometry args={[0.02, 0.02, 0.4, 8]} />
-          <meshStandardMaterial color="#a855f7" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
         <mesh position={[0.3, 0.6, 0]} rotation={[0, 0, -0.3]}>
           <cylinderGeometry args={[0.02, 0.02, 0.4, 8]} />
-          <meshStandardMaterial color="#a855f7" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
         <mesh position={[-0.4, 0.85, 0]}>
           <sphereGeometry args={[0.06, 8, 8]} />
-          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={2} />
+          <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={2} />
         </mesh>
         <mesh position={[0.4, 0.85, 0]}>
           <sphereGeometry args={[0.06, 8, 8]} />
-          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={2} />
+          <meshStandardMaterial color={accentColor} emissive={accentColor} emissiveIntensity={2} />
         </mesh>
       </group>
     </Float>
@@ -181,7 +182,7 @@ const AlienFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 4: Cat Face
-const CatFace = ({ onClick }: FaceProps) => {
+const CatFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -195,27 +196,24 @@ const CatFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.65, 32, 32]} />
-          <meshStandardMaterial color="#f97316" metalness={0.1} roughness={0.6} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.6} />
         </mesh>
-        {/* Ears */}
         <mesh position={[-0.4, 0.55, 0]} rotation={[0, 0, 0.3]}>
           <coneGeometry args={[0.2, 0.35, 3]} />
-          <meshStandardMaterial color="#f97316" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
         <mesh position={[0.4, 0.55, 0]} rotation={[0, 0, -0.3]}>
           <coneGeometry args={[0.2, 0.35, 3]} />
-          <meshStandardMaterial color="#f97316" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
-        {/* Inner ears */}
         <mesh position={[-0.38, 0.5, 0.1]} rotation={[0, 0, 0.3]}>
           <coneGeometry args={[0.1, 0.2, 3]} />
-          <meshStandardMaterial color="#fbbf24" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
         <mesh position={[0.38, 0.5, 0.1]} rotation={[0, 0, -0.3]}>
           <coneGeometry args={[0.1, 0.2, 3]} />
-          <meshStandardMaterial color="#fbbf24" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.2, 0.1, 0.6]}>
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -224,12 +222,10 @@ const CatFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Nose */}
         <mesh position={[0, -0.05, 0.65]}>
           <sphereGeometry args={[0.08, 8, 8]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Whiskers */}
         <mesh position={[-0.35, -0.1, 0.5]} rotation={[0, 0, 0.1]}>
           <cylinderGeometry args={[0.008, 0.008, 0.3, 4]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -244,7 +240,7 @@ const CatFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 5: Ghost Face
-const GhostFace = ({ onClick }: FaceProps) => {
+const GhostFace = ({ onClick, primaryColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -258,9 +254,8 @@ const GhostFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <capsuleGeometry args={[0.5, 0.4, 16, 32]} />
-          <meshStandardMaterial color="#f1f5f9" metalness={0.1} roughness={0.3} transparent opacity={0.9} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.3} transparent opacity={0.9} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.18, 0.15, 0.45]}>
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -269,7 +264,6 @@ const GhostFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Mouth */}
         <mesh position={[0, -0.15, 0.45]}>
           <sphereGeometry args={[0.1, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -280,7 +274,7 @@ const GhostFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 6: Panda Face
-const PandaFace = ({ onClick }: FaceProps) => {
+const PandaFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -294,9 +288,8 @@ const PandaFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.65, 32, 32]} />
-          <meshStandardMaterial color="#ffffff" metalness={0.1} roughness={0.5} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.5} />
         </mesh>
-        {/* Ears */}
         <mesh position={[-0.45, 0.45, -0.1]}>
           <sphereGeometry args={[0.2, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -305,7 +298,6 @@ const PandaFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.2, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Eye patches */}
         <mesh position={[-0.22, 0.1, 0.5]}>
           <sphereGeometry args={[0.18, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -314,16 +306,14 @@ const PandaFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.18, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.22, 0.12, 0.65]}>
           <sphereGeometry args={[0.06, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
         <mesh position={[0.22, 0.12, 0.65]}>
           <sphereGeometry args={[0.06, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
-        {/* Nose */}
         <mesh position={[0, -0.1, 0.62]}>
           <sphereGeometry args={[0.08, 8, 8]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -334,7 +324,7 @@ const PandaFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 7: Owl Face
-const OwlFace = ({ onClick }: FaceProps) => {
+const OwlFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -348,18 +338,16 @@ const OwlFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.6, 32, 32]} />
-          <meshStandardMaterial color="#78350f" metalness={0.1} roughness={0.6} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.6} />
         </mesh>
-        {/* Eye circles */}
         <mesh position={[-0.22, 0.1, 0.5]}>
           <circleGeometry args={[0.22, 32]} />
-          <meshStandardMaterial color="#fef3c7" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
         <mesh position={[0.22, 0.1, 0.5]}>
           <circleGeometry args={[0.22, 32]} />
-          <meshStandardMaterial color="#fef3c7" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.22, 0.1, 0.52]}>
           <circleGeometry args={[0.1, 32]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -368,19 +356,17 @@ const OwlFace = ({ onClick }: FaceProps) => {
           <circleGeometry args={[0.1, 32]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Beak */}
         <mesh position={[0, -0.12, 0.58]} rotation={[0.3, 0, 0]}>
           <coneGeometry args={[0.08, 0.15, 3]} />
           <meshStandardMaterial color="#f97316" />
         </mesh>
-        {/* Ear tufts */}
         <mesh position={[-0.35, 0.55, 0]} rotation={[0, 0, 0.4]}>
           <coneGeometry args={[0.1, 0.25, 4]} />
-          <meshStandardMaterial color="#78350f" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
         <mesh position={[0.35, 0.55, 0]} rotation={[0, 0, -0.4]}>
           <coneGeometry args={[0.1, 0.25, 4]} />
-          <meshStandardMaterial color="#78350f" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
       </group>
     </Float>
@@ -388,7 +374,7 @@ const OwlFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 8: Bunny Face
-const BunnyFace = ({ onClick }: FaceProps) => {
+const BunnyFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
   const earLeftRef = useRef<THREE.Mesh>(null);
   const earRightRef = useRef<THREE.Mesh>(null);
@@ -410,27 +396,24 @@ const BunnyFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.55, 32, 32]} />
-          <meshStandardMaterial color="#fecaca" metalness={0.1} roughness={0.5} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.5} />
         </mesh>
-        {/* Ears */}
         <mesh ref={earLeftRef} position={[-0.2, 0.75, 0]}>
           <capsuleGeometry args={[0.1, 0.5, 8, 16]} />
-          <meshStandardMaterial color="#fecaca" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
         <mesh ref={earRightRef} position={[0.2, 0.75, 0]}>
           <capsuleGeometry args={[0.1, 0.5, 8, 16]} />
-          <meshStandardMaterial color="#fecaca" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
-        {/* Inner ears */}
         <mesh position={[-0.2, 0.75, 0.08]}>
           <capsuleGeometry args={[0.05, 0.35, 8, 16]} />
-          <meshStandardMaterial color="#f87171" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
         <mesh position={[0.2, 0.75, 0.08]}>
           <capsuleGeometry args={[0.05, 0.35, 8, 16]} />
-          <meshStandardMaterial color="#f87171" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.18, 0.1, 0.5]}>
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -439,10 +422,9 @@ const BunnyFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Nose */}
         <mesh position={[0, -0.05, 0.52]}>
           <sphereGeometry args={[0.06, 8, 8]} />
-          <meshStandardMaterial color="#f87171" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
       </group>
     </Float>
@@ -450,7 +432,7 @@ const BunnyFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 9: Fox Face
-const FoxFace = ({ onClick }: FaceProps) => {
+const FoxFace = ({ onClick, primaryColor, accentColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -464,23 +446,20 @@ const FoxFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <sphereGeometry args={[0.55, 32, 32]} />
-          <meshStandardMaterial color="#ea580c" metalness={0.1} roughness={0.5} />
+          <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.5} />
         </mesh>
-        {/* White muzzle area */}
         <mesh position={[0, -0.15, 0.4]}>
           <sphereGeometry args={[0.3, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" />
+          <meshStandardMaterial color={accentColor} />
         </mesh>
-        {/* Ears */}
         <mesh position={[-0.35, 0.5, 0]} rotation={[0, 0, 0.3]}>
           <coneGeometry args={[0.18, 0.35, 3]} />
-          <meshStandardMaterial color="#ea580c" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
         <mesh position={[0.35, 0.5, 0]} rotation={[0, 0, -0.3]}>
           <coneGeometry args={[0.18, 0.35, 3]} />
-          <meshStandardMaterial color="#ea580c" />
+          <meshStandardMaterial color={primaryColor} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.18, 0.12, 0.5]}>
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -489,7 +468,6 @@ const FoxFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Nose */}
         <mesh position={[0, -0.12, 0.55]}>
           <sphereGeometry args={[0.06, 8, 8]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -500,7 +478,7 @@ const FoxFace = ({ onClick }: FaceProps) => {
 };
 
 // Character 10: Star Face
-const StarFace = ({ onClick }: FaceProps) => {
+const StarFace = ({ onClick, primaryColor }: FaceProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
@@ -531,9 +509,8 @@ const StarFace = ({ onClick }: FaceProps) => {
       <group ref={groupRef} onClick={onClick}>
         <mesh>
           <extrudeGeometry args={[starShape, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05 }]} />
-          <meshStandardMaterial color="#fbbf24" metalness={0.3} roughness={0.4} emissive="#fbbf24" emissiveIntensity={0.3} />
+          <meshStandardMaterial color={primaryColor} metalness={0.3} roughness={0.4} emissive={primaryColor} emissiveIntensity={0.3} />
         </mesh>
-        {/* Eyes */}
         <mesh position={[-0.18, 0.05, 0.35]}>
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -542,7 +519,6 @@ const StarFace = ({ onClick }: FaceProps) => {
           <sphereGeometry args={[0.08, 16, 16]} />
           <meshStandardMaterial color="#1a1a1a" />
         </mesh>
-        {/* Smile */}
         <mesh position={[0, -0.12, 0.35]} rotation={[0, 0, Math.PI]}>
           <torusGeometry args={[0.1, 0.02, 8, 16, Math.PI]} />
           <meshStandardMaterial color="#1a1a1a" />
@@ -554,41 +530,111 @@ const StarFace = ({ onClick }: FaceProps) => {
 
 // Character map for easy switching
 const CHARACTER_OPTIONS = {
-  robot: RobotFace,
-  cute: CuteFace,
-  alien: AlienFace,
-  cat: CatFace,
-  ghost: GhostFace,
-  panda: PandaFace,
-  owl: OwlFace,
-  bunny: BunnyFace,
-  fox: FoxFace,
-  star: StarFace,
+  robot: { component: RobotFace, label: "🤖 Robot" },
+  cute: { component: CuteFace, label: "😊 Cute" },
+  alien: { component: AlienFace, label: "👽 Alien" },
+  cat: { component: CatFace, label: "🐱 Cat" },
+  ghost: { component: GhostFace, label: "👻 Ghost" },
+  panda: { component: PandaFace, label: "🐼 Panda" },
+  owl: { component: OwlFace, label: "🦉 Owl" },
+  bunny: { component: BunnyFace, label: "🐰 Bunny" },
+  fox: { component: FoxFace, label: "🦊 Fox" },
+  star: { component: StarFace, label: "⭐ Star" },
 };
 
 export type CharacterType = keyof typeof CHARACTER_OPTIONS;
 
 interface AICoach3DProps {
   onCoachClick: () => void;
-  character?: CharacterType;
 }
 
-export const AICoach3D = ({ onCoachClick, character = 'robot' }: AICoach3DProps) => {
-  const CharacterComponent = CHARACTER_OPTIONS[character];
+export const AICoach3D = ({ onCoachClick }: AICoach3DProps) => {
+  const [character, setCharacter] = useState<CharacterType>(() => {
+    const saved = localStorage.getItem('aiCoachCharacter');
+    return (saved as CharacterType) || 'robot';
+  });
+  const [showSelector, setShowSelector] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState('#4ade80');
+  const [accentColor, setAccentColor] = useState('#22c55e');
+
+  // Update colors when theme changes
+  useEffect(() => {
+    const updateColors = () => {
+      setPrimaryColor(getCSSColor('--primary'));
+      setAccentColor(getCSSColor('--accent'));
+    };
+
+    updateColors();
+
+    // Listen for theme changes
+    const observer = new MutationObserver(updateColors);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class', 'data-theme'] 
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Save character preference
+  useEffect(() => {
+    localStorage.setItem('aiCoachCharacter', character);
+  }, [character]);
+
+  const CharacterComponent = CHARACTER_OPTIONS[character].component;
 
   return (
-    <div className="fixed bottom-4 right-4 w-40 h-44 z-50 cursor-pointer">
-      <Canvas
-        camera={{ position: [0, 0, 3], fov: 45 }}
-        style={{ background: "transparent" }}
-        gl={{ alpha: true, antialias: true }}
+    <div className="fixed bottom-4 right-4 z-50">
+      {/* Settings button */}
+      <button
+        onClick={() => setShowSelector(!showSelector)}
+        className="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-background/90 backdrop-blur-sm border border-border/50 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors z-10"
       >
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-        <directionalLight position={[-3, 3, 3]} intensity={0.4} color="#4ade80" />
-        <pointLight position={[0, 2, 3]} intensity={0.5} color="#fbbf24" />
-        <CharacterComponent onClick={onCoachClick} />
-      </Canvas>
+        <Settings2 size={14} />
+      </button>
+
+      {/* Character selector dropdown */}
+      {showSelector && (
+        <div className="absolute bottom-full right-0 mb-2 w-36 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2 z-20">
+          <div className="text-xs font-semibold text-muted-foreground mb-2 px-1">Choose Character</div>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {(Object.entries(CHARACTER_OPTIONS) as [CharacterType, typeof CHARACTER_OPTIONS[CharacterType]][]).map(([key, value]) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setCharacter(key);
+                  setShowSelector(false);
+                }}
+                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                  character === key 
+                    ? 'bg-primary/20 text-primary' 
+                    : 'hover:bg-muted text-foreground'
+                }`}
+              >
+                {value.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 3D Character */}
+      <div 
+        className="w-40 h-44 cursor-pointer"
+        onClick={onCoachClick}
+      >
+        <Canvas
+          camera={{ position: [0, 0, 3], fov: 45 }}
+          style={{ background: "transparent" }}
+          gl={{ alpha: true, antialias: true }}
+        >
+          <ambientLight intensity={0.7} />
+          <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+          <directionalLight position={[-3, 3, 3]} intensity={0.4} color={primaryColor} />
+          <pointLight position={[0, 2, 3]} intensity={0.5} color={accentColor} />
+          <CharacterComponent onClick={onCoachClick} primaryColor={primaryColor} accentColor={accentColor} />
+        </Canvas>
+      </div>
       
       {/* Label below */}
       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs font-semibold text-muted-foreground bg-background/90 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50 whitespace-nowrap">
