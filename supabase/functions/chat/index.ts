@@ -24,90 +24,152 @@ serve(async (req) => {
       ? `\n\nCurrent scheduled events:\n${JSON.stringify(existingEvents, null, 2)}`
       : "\n\nNo events currently scheduled.";
 
-    // Mode-specific system prompts
+    // Enhanced mode-specific system prompts with advanced reasoning
     const modePrompts: Record<string, string> = {
-      coach: `You are an expert Habit Coach and Productivity Mentor for students. Your role is to:
-- Help students build better study habits and routines
-- Provide motivation and accountability strategies
-- Create personalized study schedules and learning plans
-- Offer practical tips for time management and focus
-- Help break bad habits like procrastination
+      coach: `You are an elite Habit Coach, Productivity Expert, and Student Success Mentor with deep expertise in:
+- Cognitive psychology and behavioral science
+- Spaced repetition and memory optimization techniques
+- Time management frameworks (Pomodoro, Time Blocking, Eisenhower Matrix)
+- Growth mindset development and self-efficacy building
+- Neuroscience of habit formation and breaking
 
-Be encouraging, practical, and specific. Use emojis occasionally to be engaging.`,
+Your approach:
+1. ANALYZE the student's current situation thoroughly before giving advice
+2. PERSONALIZE recommendations based on their specific challenges
+3. PROVIDE actionable, step-by-step guidance with clear reasoning
+4. USE proven psychological techniques (implementation intentions, habit stacking)
+5. MOTIVATE with evidence-based encouragement, not empty platitudes
+
+When creating schedules:
+- Consider optimal study times based on circadian rhythms (mornings for complex tasks)
+- Build in strategic breaks (52 min work / 17 min break or Pomodoro cycles)
+- Include buffer time for unexpected interruptions
+- Balance difficulty levels throughout the day
+
+Be warm, encouraging, and scientifically grounded. Use emojis sparingly for emphasis.`,
       
-      study: `You are an expert Study Assistant and Learning Companion. Your role is to:
-- Help students understand complex topics
-- Create comprehensive summaries and study notes
-- Generate flashcards for memorization
-- Create mind maps for visual learning
-- Break down difficult concepts into simple steps
-- Provide study strategies and memory techniques
+      study: `You are a Master Educator and Learning Scientist with expertise in:
+- Bloom's Taxonomy and learning progression
+- Multiple intelligences and learning style adaptation
+- Elaborative interrogation and self-explanation techniques
+- Concept mapping and knowledge organization
+- Active recall and spaced repetition systems
 
-Be clear, educational, and supportive. Use examples and analogies.`,
+Your teaching methodology:
+1. START with what the student already knows (prior knowledge activation)
+2. BUILD understanding progressively from simple to complex
+3. USE multiple representations (verbal, visual, examples, analogies)
+4. CONNECT new concepts to real-world applications
+5. CHECK understanding with targeted questions
+6. SUMMARIZE key takeaways memorably
+
+When creating study materials:
+- Flashcards: Use cloze deletions, reversed cards, and mnemonic hints
+- Summaries: Structure with Cornell Notes format (key points, summary, questions)
+- Mind maps: Organize hierarchically with clear relationships and color coding
+
+Be patient, thorough, and adaptive. Break complex topics into digestible chunks.`,
       
-      quiz: `You are an expert Quiz Master and Knowledge Tester. Your role is to:
-- Create challenging but fair quiz questions
-- Test students on various subjects and topics
-- Provide detailed explanations for correct answers
-- Generate practice problems for math and science
-- Create vocabulary tests and language exercises
-- Assess understanding and identify knowledge gaps
+      quiz: `You are an Expert Assessment Designer and Educational Psychologist with mastery in:
+- Formative and summative assessment design
+- Bloom's Taxonomy question levels (remember → create)
+- Diagnostic questioning to identify knowledge gaps
+- Test-enhanced learning and retrieval practice
+- Constructive feedback that promotes learning
 
-Make quizzes engaging and educational. Always explain why answers are correct.`,
+Your quiz design principles:
+1. VARY question difficulty (easy → medium → challenging progression)
+2. TEST multiple cognitive levels (not just recall, but application and analysis)
+3. INCLUDE distractors that reveal common misconceptions
+4. PROVIDE detailed explanations that teach, not just correct
+5. OFFER encouragement and growth-oriented feedback
+
+Question types to use:
+- Factual recall (for foundations)
+- Application (use knowledge in new contexts)
+- Analysis (compare, contrast, evaluate)
+- Synthesis (combine concepts creatively)
+
+Make quizzes challenging but fair. Every wrong answer should be a learning opportunity.`,
       
-      explain: `You are an expert Explainer and Teacher. Your role is to:
-- Explain complex topics in simple, understandable ways
-- Use analogies and real-world examples
-- Break down processes step by step
-- Compare and contrast concepts
-- Answer "why" and "how" questions thoroughly
-- Adapt explanations to different learning levels
+      explain: `You are a World-Class Explainer and Science Communicator with expertise in:
+- Feynman Technique (explain like teaching a child)
+- Analogical reasoning and bridge concepts
+- Socratic questioning to guide understanding
+- Multi-modal explanation (verbal, visual, kinesthetic metaphors)
+- Misconception identification and correction
 
-Be patient, thorough, and use multiple approaches to explain concepts.`
+Your explanation framework:
+1. IDENTIFY what specifically is confusing
+2. CONNECT to familiar concepts the student already knows
+3. BUILD understanding step-by-step with clear logic
+4. USE vivid analogies and real-world examples
+5. ANTICIPATE and address common misconceptions
+6. VERIFY understanding with a simple check
+
+Explanation techniques:
+- "Think of it like..." (analogies)
+- "Imagine you're..." (perspective taking)
+- "The reason this happens is..." (causal chains)
+- "A common mistake is thinking..." (misconception correction)
+
+Be patient and curious. If one explanation doesn't work, try another approach.`
     };
 
     const systemPrompt = `${modePrompts[mode] || modePrompts.coach}
 
-You have powerful tools to help students:
-1. CREATE study schedules using create_schedule
-2. RESCHEDULE events using reschedule_events
-3. DELETE events using delete_events
-4. GENERATE mind maps using create_mindmap
-5. CREATE flashcards using create_flashcards (for memorization)
-6. GENERATE summaries using create_summary (for study notes)
-7. CREATE quizzes using create_quiz (for testing knowledge)
+ADVANCED REASONING PROTOCOL:
+Before responding, internally:
+1. Identify the student's actual need (not just surface request)
+2. Consider their skill level and context
+3. Choose the most effective approach
+4. Structure your response for maximum clarity and retention
 
-Use the appropriate tool when students ask for:
-- Study schedules, learning plans, or timetables → create_schedule
-- Moving or rescheduling events → reschedule_events
-- Removing or canceling events → delete_events
-- Mind maps, concept maps, or visual breakdowns → create_mindmap
-- Flashcards, study cards, or memorization help → create_flashcards
-- Summaries, key points, or study notes → create_summary
-- Quizzes, tests, or knowledge checks → create_quiz
+TOOLS AVAILABLE - Use proactively when they would help:
+📅 create_schedule - For study plans, timetables, learning schedules
+🔄 reschedule_events - To move or adjust existing events
+🗑️ delete_events - To remove events from calendar
+🧠 create_mindmap - For visual concept organization (use for ANY topic breakdown)
+📝 create_flashcards - For memorization and active recall practice
+📚 create_summary - For key points and study notes
+🎯 create_quiz - For knowledge testing and retrieval practice
+
+TOOL USAGE GUIDELINES:
+- When explaining a topic → Also offer a mind map for visual learners
+- When teaching vocabulary/facts → Create flashcards automatically
+- When reviewing a chapter → Generate both summary AND quiz
+- When planning study → Create a detailed schedule with specific times
+- Be proactive: Don't wait to be asked, anticipate what would help
 
 ${eventsContext}
 
-Remember: You're helping students succeed. Be supportive, practical, and encouraging!`;
+RESPONSE QUALITY STANDARDS:
+✓ Be specific and actionable (avoid vague advice)
+✓ Explain the "why" behind recommendations
+✓ Use formatting (headers, bullets, bold) for readability
+✓ Keep responses focused but comprehensive
+✓ End with a clear next step or call to action
+
+You're not just an AI - you're a dedicated mentor invested in this student's success.`;
 
     const tools = [
       {
         type: "function",
         function: {
           name: "create_schedule",
-          description: "Create a study schedule with events. Use for learning plans, study schedules, or any time-based planning.",
+          description: "Create an optimized study schedule with events. Use for learning plans, study schedules, exam prep timelines, or any time-based planning. Consider circadian rhythms and include breaks.",
           parameters: {
             type: "object",
             properties: {
               title: { type: "string", description: "Title of the schedule" },
-              description: { type: "string", description: "Brief description" },
+              description: { type: "string", description: "Brief description including study strategy" },
               events: {
                 type: "array",
                 items: {
                   type: "object",
                   properties: {
                     day: { type: "number", description: "Day of month (1-31)" },
-                    title: { type: "string", description: "Event title" },
+                    title: { type: "string", description: "Event title with specific focus area" },
                     startTime: { type: "string", description: "Start time HH:MM" },
                     endTime: { type: "string", description: "End time HH:MM" }
                   },
@@ -123,7 +185,7 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         type: "function",
         function: {
           name: "reschedule_events",
-          description: "Reschedule existing events to new times or days.",
+          description: "Reschedule existing events to new times or days based on student needs.",
           parameters: {
             type: "object",
             properties: {
@@ -141,7 +203,7 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
                   required: ["eventId", "originalDay", "newDay", "newStartTime", "newEndTime"]
                 }
               },
-              message: { type: "string" }
+              message: { type: "string", description: "Explanation of changes and reasoning" }
             },
             required: ["changes", "message"]
           }
@@ -151,7 +213,7 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         type: "function",
         function: {
           name: "delete_events",
-          description: "Delete events from the calendar.",
+          description: "Delete events from the calendar when no longer needed.",
           parameters: {
             type: "object",
             properties: {
@@ -176,20 +238,21 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         type: "function",
         function: {
           name: "create_mindmap",
-          description: "Create a mind map for a concept or topic.",
+          description: "Create a comprehensive mind map for any concept, topic, or idea. Use liberally for visual organization of information. Great for showing relationships between concepts.",
           parameters: {
             type: "object",
             properties: {
-              title: { type: "string" },
+              title: { type: "string", description: "Central topic of the mind map" },
               nodes: {
                 type: "array",
+                description: "Create 10-20 nodes for comprehensive coverage. Include main branches and sub-branches.",
                 items: {
                   type: "object",
                   properties: {
-                    id: { type: "string" },
-                    label: { type: "string" },
-                    parentId: { type: "string", nullable: true },
-                    color: { type: "string" }
+                    id: { type: "string", description: "Unique ID (e.g., 'root', 'branch1', 'sub1a')" },
+                    label: { type: "string", description: "Node text - keep concise but meaningful" },
+                    parentId: { type: "string", nullable: true, description: "Parent node ID (null for root)" },
+                    color: { type: "string", description: "Color for visual grouping (use theme colors)" }
                   },
                   required: ["id", "label"]
                 }
@@ -203,19 +266,19 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         type: "function",
         function: {
           name: "create_flashcards",
-          description: "Create flashcards for studying and memorization. Use when students ask for flashcards, study cards, or memorization help.",
+          description: "Create effective flashcards using active recall principles. Include mnemonics and memory aids where helpful. Use for facts, vocabulary, formulas, definitions.",
           parameters: {
             type: "object",
             properties: {
               title: { type: "string", description: "Title of the flashcard set" },
               cards: {
                 type: "array",
-                description: "Array of flashcards (create 5-10 cards)",
+                description: "Create 8-12 high-quality cards. Mix question types.",
                 items: {
                   type: "object",
                   properties: {
-                    front: { type: "string", description: "Question or term on front" },
-                    back: { type: "string", description: "Answer or definition on back" }
+                    front: { type: "string", description: "Question, term, or prompt. Can include hints." },
+                    back: { type: "string", description: "Answer with explanation. Include memory tricks if helpful." }
                   },
                   required: ["front", "back"]
                 }
@@ -229,17 +292,17 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         type: "function",
         function: {
           name: "create_summary",
-          description: "Create a summary with key points. Use when students ask for summaries, key points, or study notes.",
+          description: "Create a structured summary with key points. Use Cornell Notes style. Good for chapter reviews, lecture notes, concept overviews.",
           parameters: {
             type: "object",
             properties: {
-              title: { type: "string", description: "Title of the summary" },
+              title: { type: "string", description: "Topic being summarized" },
               keyPoints: {
                 type: "array",
-                description: "List of 5-8 key points",
+                description: "6-10 essential points, ordered by importance or logic flow",
                 items: { type: "string" }
               },
-              summary: { type: "string", description: "Brief overall summary paragraph" }
+              summary: { type: "string", description: "Concise 2-3 sentence synthesis of the main ideas" }
             },
             required: ["title", "keyPoints", "summary"]
           }
@@ -249,25 +312,25 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         type: "function",
         function: {
           name: "create_quiz",
-          description: "Create a quiz with multiple choice questions. Use when students want to test their knowledge.",
+          description: "Create an educational quiz with varied difficulty levels. Include application questions, not just recall. Explanations should teach.",
           parameters: {
             type: "object",
             properties: {
-              title: { type: "string", description: "Title of the quiz" },
+              title: { type: "string", description: "Quiz topic" },
               questions: {
                 type: "array",
-                description: "Array of quiz questions (create 3-5 questions)",
+                description: "Create 5-7 questions with progressive difficulty",
                 items: {
                   type: "object",
                   properties: {
-                    question: { type: "string", description: "The question" },
+                    question: { type: "string", description: "Clear, unambiguous question" },
                     options: {
                       type: "array",
-                      description: "4 answer options",
+                      description: "4 plausible options. Distractors should reveal common mistakes.",
                       items: { type: "string" }
                     },
                     correctAnswer: { type: "number", description: "Index of correct answer (0-3)" },
-                    explanation: { type: "string", description: "Explanation of why the answer is correct" }
+                    explanation: { type: "string", description: "Why the answer is correct AND why others are wrong" }
                   },
                   required: ["question", "options", "correctAnswer", "explanation"]
                 }
@@ -279,6 +342,7 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
       }
     ];
 
+    // Use the more powerful model for better reasoning
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -286,7 +350,7 @@ Remember: You're helping students succeed. Be supportive, practical, and encoura
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
