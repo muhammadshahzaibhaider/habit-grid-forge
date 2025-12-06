@@ -9,7 +9,7 @@ export const AICoach3D = ({ onCoachClick }: AICoach3DProps) => {
 
   return (
     <div 
-      className="fixed bottom-4 right-4 z-50 cursor-pointer transition-transform duration-300"
+      className="fixed bottom-4 right-4 z-50 cursor-pointer transition-transform duration-300 overflow-hidden"
       style={{
         width: '200px',
         height: '200px',
@@ -22,10 +22,19 @@ export const AICoach3D = ({ onCoachClick }: AICoach3DProps) => {
       <iframe 
         src='https://my.spline.design/genkubgreetingrobot-20QHZBoNJioO5PIBptPd6uAF/' 
         frameBorder='0' 
-        width='100%' 
-        height='100%'
-        style={{ pointerEvents: 'none', borderRadius: '12px' }}
+        width='120%' 
+        height='120%'
+        style={{ 
+          pointerEvents: 'none', 
+          borderRadius: '12px',
+          marginLeft: '-10%',
+          marginTop: '-10%',
+        }}
         title="AI Coach Robot"
+      />
+      {/* Overlay to hide Spline watermark */}
+      <div 
+        className="absolute bottom-0 right-0 w-full h-8 bg-gradient-to-t from-background to-transparent pointer-events-none"
       />
       {isHovered && (
         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs whitespace-nowrap animate-fade-in shadow-lg">
