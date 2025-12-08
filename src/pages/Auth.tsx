@@ -87,34 +87,6 @@ const Auth = () => {
     return (data && data.length > 0) || false;
   };
 
-  const checkEmailExists = async (email: string): Promise<boolean> => {
-    // We can check by trying to get profile with same user email indirectly
-    // But actually we need to check auth.users - which we can't directly
-    // The signUp will fail if email exists, so we handle that in the error
-    return false;
-  };
-
-  const getEmailByUsername = async (username: string): Promise<string | null> => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .ilike("username", username)
-      .single();
-    
-    if (!data) return null;
-    
-    // We need to get the email from auth.users, but we can't directly query that
-    // Instead, we'll store the email in the profiles table
-    // For now, let's query the profiles table with an email column
-    const { data: profileWithEmail } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .ilike("username", username)
-      .single();
-    
-    return profileWithEmail?.user_id || null;
-  };
-
   const handleSignUp = async () => {
     if (!validateForm()) return;
 
@@ -151,16 +123,16 @@ const Auth = () => {
       }
 
       if (data.user) {
-        // Create profile with username
+        // Create profile with username and email
         const { error: profileError } = await supabase.from("profiles").insert({
           user_id: data.user.id,
           username: username.toLowerCase(),
+          email: email.toLowerCase(),
         });
 
         if (profileError) {
           if (profileError.message.includes("unique") || profileError.message.includes("duplicate")) {
             setErrors({ username: "This username is already taken" });
-            // Clean up the auth user since profile creation failed
             await supabase.auth.signOut();
           } else {
             throw profileError;
@@ -189,14 +161,14 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
-      // First, get the user_id from profiles by username
+      // Get email from profiles by username
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("user_id")
+        .select("email")
         .ilike("username", username)
         .single();
 
-      if (profileError || !profile) {
+      if (profileError || !profile || !profile.email) {
         toast({
           title: "Invalid credentials",
           description: "No account found with this username.",
@@ -206,41 +178,29 @@ const Auth = () => {
         return;
       }
 
-      // We need to get the email to sign in
-      // Since we can't query auth.users directly, we'll need to store email in profiles
-      // For now, we'll use a workaround by trying admin API or just tell user to use email
-
-      // Actually, let's query auth by getting user info differently
-      // We'll try signing in with the username as email first (won't work), 
-      // then we need to fetch the email from somewhere
-
-      // The cleanest solution is to store email in profiles table
-      // But since migration is already done, let's try a different approach
-      // We can use the signInWithPassword with the email if we had it
-
-      // For this implementation, we'll need to rely on the email being stored
-      // Let's check if there's a way to get it
-
-      // Unfortunately without storing email in profiles, we can't do username-only login
-      // Let's inform the user they need to sign in with email for existing accounts
-      // or we need to update the profiles table
-
-      // For new implementation: Let's assume email is linked via auth
-      // We'll try a RPC call or edge function to look up email
-
-      // Simplest approach: Use Supabase admin API via edge function
-      // But for now, let's use a workaround - attempt sign in directly 
-      // This won't work without email
-
-      // Best solution: Update migration to add email to profiles
-      // For now, show error and suggest using email
-
-      toast({
-        title: "Login method update",
-        description: "Please use your email to sign in. Username-only login requires database update.",
-        variant: "destructive",
+      // Sign in with the email from profile
+      const { error } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password,
       });
 
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Invalid credentials",
+            description: "The username or password you entered is incorrect.",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      toast({
+        title: "Welcome back!",
+        description: "Successfully signed in.",
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -321,7 +281,7 @@ const Auth = () => {
                   <p className="text-xs text-destructive">{errors.email}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Email is only used during signup for verification
+                  Email is only required during signup
                 </p>
               </div>
             )}
