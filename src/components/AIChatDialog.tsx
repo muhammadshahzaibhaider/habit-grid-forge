@@ -10,7 +10,6 @@ import {
   GraduationCap, Zap, HelpCircle, ListChecks, PenTool, Calculator, Mic, MicOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { MindMap } from "./MindMap";
 
 // Type declarations for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -47,7 +46,6 @@ interface Message {
   schedule?: SchedulePlan;
   reschedule?: ReschedulePlan;
   deletions?: DeletionPlan;
-  mindmap?: MindMapData;
   flashcards?: FlashcardData;
   summary?: SummaryData;
   quiz?: QuizData;
@@ -87,18 +85,6 @@ interface DeletionItem {
 interface DeletionPlan {
   deletions: DeletionItem[];
   message: string;
-}
-
-interface MindMapNode {
-  id: string;
-  label: string;
-  parentId?: string | null;
-  color?: string;
-}
-
-interface MindMapData {
-  title: string;
-  nodes: MindMapNode[];
 }
 
 interface Flashcard {
@@ -166,7 +152,7 @@ const QUICK_ACTIONS = {
   study: [
     { label: "Summarize Topic", prompt: "Summarize the key concepts of [topic]", icon: FileText },
     { label: "Create Flashcards", prompt: "Create flashcards for studying [topic]", icon: PenTool },
-    { label: "Mind Map", prompt: "Create a mind map for [topic]", icon: Brain },
+    { label: "Explain Concept", prompt: "Explain [topic] in simple terms", icon: Brain },
     { label: "Study Plan", prompt: "Create a study plan for my upcoming exam in [subject]", icon: ListChecks },
   ],
   quiz: [
@@ -262,7 +248,6 @@ export const AIChatDialog = ({
         if (finalTranscript) {
           setInput(prev => prev + finalTranscript);
         } else if (interimTranscript) {
-          // Show interim results as user speaks
           setInput(prev => {
             const lastFinal = prev.lastIndexOf(' ');
             return prev.substring(0, lastFinal + 1) + interimTranscript;
@@ -435,13 +420,6 @@ export const AIChatDialog = ({
             setMessages(prev => {
               const updated = [...prev];
               updated[updated.length - 1] = { role: "assistant", content: deletionPlan.message, deletions: deletionPlan };
-              return updated;
-            });
-          } else if (toolCallName === "create_mindmap") {
-            const mindmap = parsedArgs as MindMapData;
-            setMessages(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1] = { role: "assistant", content: `🧠 **Mind Map: ${mindmap.title}**`, mindmap };
               return updated;
             });
           } else if (toolCallName === "create_flashcards") {
@@ -682,11 +660,6 @@ export const AIChatDialog = ({
                       <Trash2 size={14} />
                       Delete {msg.deletions.deletions.length} Events
                     </Button>
-                  )}
-
-                  {/* Mind Map */}
-                  {msg.mindmap && (
-                    <MindMap title={msg.mindmap.title} nodes={msg.mindmap.nodes} />
                   )}
 
                   {/* Flashcards */}

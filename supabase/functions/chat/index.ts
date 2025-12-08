@@ -46,7 +46,7 @@ When creating schedules:
 - Include buffer time for unexpected interruptions
 - Balance difficulty levels throughout the day
 
-Be warm, encouraging, and scientifically grounded. Use emojis sparingly for emphasis.`,
+Be warm, encouraging, and scientifically grounded. Keep responses concise and focused.`,
       
       study: `You are a Master Educator and Learning Scientist with expertise in:
 - Bloom's Taxonomy and learning progression
@@ -66,7 +66,6 @@ Your teaching methodology:
 When creating study materials:
 - Flashcards: Use cloze deletions, reversed cards, and mnemonic hints
 - Summaries: Structure with Cornell Notes format (key points, summary, questions)
-- Mind maps: Organize hierarchically with clear relationships and color coding
 
 Be patient, thorough, and adaptive. Break complex topics into digestible chunks.`,
       
@@ -118,46 +117,36 @@ Be patient and curious. If one explanation doesn't work, try another approach.`
 
     const systemPrompt = `${modePrompts[mode] || modePrompts.coach}
 
-ADVANCED REASONING PROTOCOL:
-Before responding, internally:
-1. Identify the student's actual need (not just surface request)
-2. Consider their skill level and context
-3. Choose the most effective approach
-4. Structure your response for maximum clarity and retention
+IMPORTANT: Be concise and direct. Avoid lengthy responses unless specifically asked for detailed explanations.
 
-TOOLS AVAILABLE - Use proactively when they would help:
+TOOLS AVAILABLE - Use when specifically requested:
 📅 create_schedule - For study plans, timetables, learning schedules
 🔄 reschedule_events - To move or adjust existing events
 🗑️ delete_events - To remove events from calendar
-🧠 create_mindmap - For visual concept organization (use for ANY topic breakdown)
-📝 create_flashcards - For memorization and active recall practice
-📚 create_summary - For key points and study notes
-🎯 create_quiz - For knowledge testing and retrieval practice
+📝 create_flashcards - For memorization and active recall practice (when asked)
+📚 create_summary - For key points and study notes (when asked)
+🎯 create_quiz - For knowledge testing and retrieval practice (when asked)
 
-TOOL USAGE GUIDELINES:
-- When explaining a topic → Also offer a mind map for visual learners
-- When teaching vocabulary/facts → Create flashcards automatically
-- When reviewing a chapter → Generate both summary AND quiz
-- When planning study → Create a detailed schedule with specific times
-- Be proactive: Don't wait to be asked, anticipate what would help
+IMPORTANT TOOL GUIDELINES:
+- Only use tools when the user explicitly asks for them
+- Do NOT automatically generate flashcards, summaries, or quizzes unless requested
+- Keep text responses brief and focused
+- When asked a simple question, give a simple answer
 
 ${eventsContext}
 
 RESPONSE QUALITY STANDARDS:
 ✓ Be specific and actionable (avoid vague advice)
-✓ Explain the "why" behind recommendations
-✓ Use formatting (headers, bullets, bold) for readability
-✓ Keep responses focused but comprehensive
-✓ End with a clear next step or call to action
-
-You're not just an AI - you're a dedicated mentor invested in this student's success.`;
+✓ Keep responses concise - don't over-explain
+✓ Use formatting only when it helps clarity
+✓ Answer the actual question asked`;
 
     const tools = [
       {
         type: "function",
         function: {
           name: "create_schedule",
-          description: "Create an optimized study schedule with events. Use for learning plans, study schedules, exam prep timelines, or any time-based planning. Consider circadian rhythms and include breaks.",
+          description: "Create an optimized study schedule with events. Only use when user explicitly asks for a schedule or plan.",
           parameters: {
             type: "object",
             properties: {
@@ -185,7 +174,7 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
         type: "function",
         function: {
           name: "reschedule_events",
-          description: "Reschedule existing events to new times or days based on student needs.",
+          description: "Reschedule existing events to new times or days. Only use when user asks to move or change event times.",
           parameters: {
             type: "object",
             properties: {
@@ -213,7 +202,7 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
         type: "function",
         function: {
           name: "delete_events",
-          description: "Delete events from the calendar when no longer needed.",
+          description: "Delete events from the calendar. Only use when user explicitly asks to remove events.",
           parameters: {
             type: "object",
             properties: {
@@ -237,48 +226,20 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
       {
         type: "function",
         function: {
-          name: "create_mindmap",
-          description: "Create a comprehensive mind map for any concept, topic, or idea. Use liberally for visual organization of information. Great for showing relationships between concepts.",
-          parameters: {
-            type: "object",
-            properties: {
-              title: { type: "string", description: "Central topic of the mind map" },
-              nodes: {
-                type: "array",
-                description: "Create 10-20 nodes for comprehensive coverage. Include main branches and sub-branches.",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string", description: "Unique ID (e.g., 'root', 'branch1', 'sub1a')" },
-                    label: { type: "string", description: "Node text - keep concise but meaningful" },
-                    parentId: { type: "string", nullable: true, description: "Parent node ID (null for root)" },
-                    color: { type: "string", description: "Color for visual grouping (use theme colors)" }
-                  },
-                  required: ["id", "label"]
-                }
-              }
-            },
-            required: ["title", "nodes"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
           name: "create_flashcards",
-          description: "Create effective flashcards using active recall principles. Include mnemonics and memory aids where helpful. Use for facts, vocabulary, formulas, definitions.",
+          description: "Create flashcards for studying. Only use when user explicitly asks for flashcards.",
           parameters: {
             type: "object",
             properties: {
               title: { type: "string", description: "Title of the flashcard set" },
               cards: {
                 type: "array",
-                description: "Create 8-12 high-quality cards. Mix question types.",
+                description: "Create 5-8 focused cards",
                 items: {
                   type: "object",
                   properties: {
-                    front: { type: "string", description: "Question, term, or prompt. Can include hints." },
-                    back: { type: "string", description: "Answer with explanation. Include memory tricks if helpful." }
+                    front: { type: "string", description: "Question or term" },
+                    back: { type: "string", description: "Answer with brief explanation" }
                   },
                   required: ["front", "back"]
                 }
@@ -292,17 +253,17 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
         type: "function",
         function: {
           name: "create_summary",
-          description: "Create a structured summary with key points. Use Cornell Notes style. Good for chapter reviews, lecture notes, concept overviews.",
+          description: "Create a structured summary. Only use when user explicitly asks for a summary.",
           parameters: {
             type: "object",
             properties: {
               title: { type: "string", description: "Topic being summarized" },
               keyPoints: {
                 type: "array",
-                description: "6-10 essential points, ordered by importance or logic flow",
+                description: "5-7 essential points",
                 items: { type: "string" }
               },
-              summary: { type: "string", description: "Concise 2-3 sentence synthesis of the main ideas" }
+              summary: { type: "string", description: "Concise 2-3 sentence synthesis" }
             },
             required: ["title", "keyPoints", "summary"]
           }
@@ -312,25 +273,25 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
         type: "function",
         function: {
           name: "create_quiz",
-          description: "Create an educational quiz with varied difficulty levels. Include application questions, not just recall. Explanations should teach.",
+          description: "Create a quiz. Only use when user explicitly asks for a quiz or to test their knowledge.",
           parameters: {
             type: "object",
             properties: {
               title: { type: "string", description: "Quiz topic" },
               questions: {
                 type: "array",
-                description: "Create 5-7 questions with progressive difficulty",
+                description: "Create 4-6 questions",
                 items: {
                   type: "object",
                   properties: {
-                    question: { type: "string", description: "Clear, unambiguous question" },
+                    question: { type: "string", description: "Clear question" },
                     options: {
                       type: "array",
-                      description: "4 plausible options. Distractors should reveal common mistakes.",
+                      description: "4 options",
                       items: { type: "string" }
                     },
                     correctAnswer: { type: "number", description: "Index of correct answer (0-3)" },
-                    explanation: { type: "string", description: "Why the answer is correct AND why others are wrong" }
+                    explanation: { type: "string", description: "Brief explanation" }
                   },
                   required: ["question", "options", "correctAnswer", "explanation"]
                 }
@@ -342,7 +303,7 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
       }
     ];
 
-    // Use the more powerful model for better reasoning
+    // Use faster model for quicker responses
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -350,7 +311,7 @@ You're not just an AI - you're a dedicated mentor invested in this student's suc
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages,
