@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Gamepad2 } from "lucide-react";
+import { Plus, Trash2, LogOut, MessageSquare } from "lucide-react";
 import { DayScheduler, ScheduleEvent } from "@/components/DayScheduler";
 import { AIChatDialog } from "@/components/AIChatDialog";
 import { Timer } from "@/components/Timer";
@@ -15,13 +16,9 @@ import { Notepad } from "@/components/Notepad";
 import { StarField } from "@/components/StarField";
 import { Snowfall } from "@/components/Snowfall";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ChessGame } from "@/components/ChessGame";
-import { TicTacToe } from "@/components/TicTacToe";
-import { SnakeGame } from "@/components/SnakeGame";
-import { Game2048 } from "@/components/Game2048";
-import { MemoryGame } from "@/components/MemoryGame";
-import { Minesweeper } from "@/components/Minesweeper";
-import { AICoach3D } from "@/components/AICoach3D";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
 const INITIAL_HABITS = [
   { id: 1, name: "Wake Up at Same Time", goal: 31 },
   { id: 2, name: "Make Your Bed", goal: 31 },
@@ -68,6 +65,12 @@ const getDefaultHabits = () => INITIAL_HABITS.map(habit => ({
 }));
 
 const Index = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [username, setUsername] = useState<string>("");
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
   const [year, setYear] = useState(() => {
     const saved = localStorage.getItem('habitTrackerYear');
     return saved ? parseInt(saved) : 2025;
@@ -86,7 +89,6 @@ const Index = () => {
     if (saved) {
       return JSON.parse(saved);
     }
-    // Migrate old data if exists
     const oldData = localStorage.getItem('habitTrackerData');
     if (oldData) {
       const oldYear = localStorage.getItem('habitTrackerYear') || '2025';
@@ -129,6 +131,51 @@ const Index = () => {
         [day]: events
       }
     }));
+  };
+
+  // Check authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      
+      // Fetch username
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("user_id", session.user.id)
+        .single();
+      
+      if (profile) {
+        setUsername(profile.username);
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUser(session.user);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Signed out",
+      description: "You have been signed out successfully.",
+    });
+    navigate("/auth");
   };
 
   // Save all monthly data to localStorage
@@ -281,11 +328,18 @@ const Index = () => {
       .slice(0, 10);
   }, [habitProgress]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-primary text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background p-4 relative overflow-hidden">
       {/* Winter months (Dec, Jan, Feb) show snowfall, otherwise stars */}
       {monthIndex === 11 || monthIndex === 0 || monthIndex === 1 ? <Snowfall /> : <StarField />}
-      <AICoach3D onCoachClick={() => setAiCoachOpen(true)} />
       <AIChatDialog
         open={aiCoachOpen}
         onOpenChange={setAiCoachOpen}
@@ -380,9 +434,32 @@ const Index = () => {
           </div>
 
           <div className="glass-secondary rounded-lg p-4 flex items-center justify-between hover-lift animate-card-enter" style={{ animationDelay: '200ms' }}>
-            <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
+            <div>
+              <div className="text-secondary-foreground font-bold text-lg">OVERVIEW</div>
+              {username && (
+                <div className="text-secondary-foreground/70 text-xs">@{username}</div>
+              )}
+            </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setAiCoachOpen(true)}
+                className="bg-background/80 backdrop-blur-sm border-border/50 hover:bg-accent transition-all duration-300"
+                title="Chat with AI"
+              >
+                <MessageSquare className="h-5 w-5" />
+              </Button>
               <ThemeToggle />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleSignOut}
+                className="bg-background/80 backdrop-blur-sm border-border/50 hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
+                title="Sign out"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -590,22 +667,6 @@ const Index = () => {
             
             {/* Notepad */}
             <Notepad />
-            
-            {/* Games Section */}
-            <div className="glass-card rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '750ms' }}>
-              <h3 className="font-bold text-center mb-3 flex items-center justify-center gap-2">
-                <Gamepad2 className="h-4 w-4" />
-                GAMES
-              </h3>
-              <div className="space-y-2">
-                <ChessGame />
-                <TicTacToe />
-                <SnakeGame />
-                <Game2048 />
-                <MemoryGame />
-                <Minesweeper />
-              </div>
-            </div>
             
             {/* Overview Daily Progress */}
             <div className="glass-primary rounded-lg p-4 hover-lift animate-card-enter" style={{ animationDelay: '800ms' }}>

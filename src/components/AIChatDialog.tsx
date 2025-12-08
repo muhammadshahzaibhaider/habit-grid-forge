@@ -634,12 +634,25 @@ export const AIChatDialog = ({
                   </div>
                 )}
                 <div className="max-w-[85%] space-y-3">
-                  <div className={`rounded-xl px-4 py-3 text-sm ${
+                  <div className={`rounded-xl px-4 py-3 ${
                     msg.role === "user" 
-                      ? "bg-primary text-primary-foreground rounded-br-sm" 
-                      : "bg-muted rounded-bl-sm"
+                      ? "bg-primary text-primary-foreground rounded-br-sm text-sm" 
+                      : "bg-muted rounded-bl-sm ai-message-content"
                   }`}>
-                    {msg.content || (isLoading && msg.role === "assistant" ? (
+                    {msg.content ? (
+                      <div dangerouslySetInnerHTML={{ 
+                        __html: msg.content
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/`(.*?)`/g, '<code>$1</code>')
+                          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                          .replace(/^\- (.*$)/gim, '<li>$1</li>')
+                          .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+                          .replace(/\n/g, '<br/>')
+                      }} />
+                    ) : (isLoading && msg.role === "assistant" ? (
                       <div className="flex items-center gap-2">
                         <Loader2 size={16} className="animate-spin" />
                         <span className="text-xs">Thinking...</span>
