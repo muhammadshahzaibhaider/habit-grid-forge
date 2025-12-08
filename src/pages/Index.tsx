@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, LogOut, MessageSquare } from "lucide-react";
+import { Plus, Trash2, LogOut, MessageSquare, Loader2 } from "lucide-react";
 import { DayScheduler, ScheduleEvent } from "@/components/DayScheduler";
 import { AIChatDialog } from "@/components/AIChatDialog";
 import { Timer } from "@/components/Timer";
@@ -65,9 +65,9 @@ const getDefaultHabits = () => INITIAL_HABITS.map(habit => ({
 }));
 
 const Index = () => {
-  const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [username, setUsername] = useState<string>("");
+  const [isLoadingAction, setIsLoadingAction] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -113,17 +113,75 @@ const Index = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newHabitName, setNewHabitName] = useState("");
   
-  // Schedule events state
-  const [allScheduleData, setAllScheduleData] = useState<ScheduleData>(() => {
-    const saved = localStorage.getItem('habitTrackerSchedule');
-    return saved ? JSON.parse(saved) : {};
-  });
+  // Schedule events state - now synced with database
+  const [allScheduleData, setAllScheduleData] = useState<ScheduleData>({});
   const [selectedScheduleDay, setSelectedScheduleDay] = useState<number | null>(null);
   const [aiCoachOpen, setAiCoachOpen] = useState(false);
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   
   const scheduleEvents = allScheduleData[monthKey] || {};
-  
-  const setScheduleEventsForDay = (day: number, events: ScheduleEvent[]) => {
+
+  // Load schedules from database
+  const loadSchedulesFromDB = useCallback(async (userId: string, monthKey: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_schedules")
+        .select("day, events")
+        .eq("user_id", userId)
+        .eq("month_key", monthKey);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const scheduleMap: { [day: number]: ScheduleEvent[] } = {};
+        data.forEach(row => {
+          scheduleMap[row.day] = row.events as unknown as ScheduleEvent[];
+        });
+        setAllScheduleData(prev => ({
+          ...prev,
+          [monthKey]: scheduleMap
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading schedules:", error);
+    }
+  }, []);
+
+  // Save schedule to database
+  const saveScheduleToDB = useCallback(async (userId: string, monthKey: string, day: number, events: ScheduleEvent[]) => {
+    try {
+      if (events.length === 0) {
+        // Delete the row if no events
+        await supabase
+          .from("user_schedules")
+          .delete()
+          .eq("user_id", userId)
+          .eq("month_key", monthKey)
+          .eq("day", day);
+      } else {
+        // Upsert the events
+        await supabase
+          .from("user_schedules")
+          .upsert({
+            user_id: userId,
+            month_key: monthKey,
+            day: day,
+            events: events as unknown as any,
+          }, {
+            onConflict: 'user_id,month_key,day'
+          });
+      }
+    } catch (error) {
+      console.error("Error saving schedule:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save schedule. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const setScheduleEventsForDay = useCallback((day: number, events: ScheduleEvent[]) => {
     setAllScheduleData(prev => ({
       ...prev,
       [monthKey]: {
@@ -131,7 +189,12 @@ const Index = () => {
         [day]: events
       }
     }));
-  };
+    
+    // Save to database if user is logged in
+    if (user?.id) {
+      saveScheduleToDB(user.id, monthKey, day, events);
+    }
+  }, [monthKey, user, saveScheduleToDB]);
 
   // Check authentication
   useEffect(() => {
@@ -153,7 +216,9 @@ const Index = () => {
       if (profile) {
         setUsername(profile.username);
       }
-      setIsLoading(false);
+      
+      // Load schedules for current month
+      loadSchedulesFromDB(session.user.id, monthKey);
     };
 
     checkAuth();
@@ -167,26 +232,33 @@ const Index = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, monthKey, loadSchedulesFromDB]);
+
+  // Load schedules when month changes
+  useEffect(() => {
+    if (user?.id) {
+      loadSchedulesFromDB(user.id, monthKey);
+    }
+  }, [monthKey, user, loadSchedulesFromDB]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Signed out",
-      description: "You have been signed out successfully.",
-    });
-    navigate("/auth");
+    setIsLoadingAction(true);
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully.",
+      });
+      navigate("/auth");
+    } finally {
+      setIsLoadingAction(false);
+    }
   };
 
   // Save all monthly data to localStorage
   useEffect(() => {
     localStorage.setItem('habitTrackerMonthlyData', JSON.stringify(allMonthlyData));
   }, [allMonthlyData]);
-  
-  // Save schedule data to localStorage
-  useEffect(() => {
-    localStorage.setItem('habitTrackerSchedule', JSON.stringify(allScheduleData));
-  }, [allScheduleData]);
 
   // Save year and month to localStorage
   useEffect(() => {
@@ -236,17 +308,26 @@ const Index = () => {
     }
   };
 
-  const addNewHabit = () => {
+  const addNewHabit = async () => {
     if (newHabitName.trim()) {
-      const newId = Math.max(...habits.map(h => h.id)) + 1;
-      setHabits(prev => [...prev, {
-        id: newId,
-        name: newHabitName.trim(),
-        goal: daysInMonth,
-        days: Array(31).fill(false)
-      }]);
-      setNewHabitName("");
-      setIsDialogOpen(false);
+      setIsLoadingAction(true);
+      try {
+        const newId = Math.max(...habits.map(h => h.id)) + 1;
+        setHabits(prev => [...prev, {
+          id: newId,
+          name: newHabitName.trim(),
+          goal: daysInMonth,
+          days: Array(31).fill(false)
+        }]);
+        setNewHabitName("");
+        setIsDialogOpen(false);
+        toast({
+          title: "Habit added",
+          description: `"${newHabitName.trim()}" has been added to your habits.`,
+        });
+      } finally {
+        setIsLoadingAction(false);
+      }
     }
   };
 
@@ -327,14 +408,6 @@ const Index = () => {
       .sort((a, b) => b.percentage - a.percentage)
       .slice(0, 10);
   }, [habitProgress]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-primary text-xl">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background p-4 relative overflow-hidden">
@@ -455,10 +528,11 @@ const Index = () => {
                 variant="outline"
                 size="icon"
                 onClick={handleSignOut}
+                disabled={isLoadingAction}
                 className="bg-background/80 backdrop-blur-sm border-border/50 hover:bg-destructive hover:text-destructive-foreground transition-all duration-300"
                 title="Sign out"
               >
-                <LogOut className="h-5 w-5" />
+                {isLoadingAction ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
               </Button>
             </div>
           </div>
@@ -566,7 +640,8 @@ const Index = () => {
                         className="bg-background/50 backdrop-blur-sm"
                       />
                     </div>
-                    <Button onClick={addNewHabit} className="w-full hover-glow">
+                    <Button onClick={addNewHabit} disabled={isLoadingAction} className="w-full hover-glow">
+                      {isLoadingAction ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                       Add Habit
                     </Button>
                   </div>
