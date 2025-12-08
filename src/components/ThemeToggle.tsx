@@ -1,4 +1,4 @@
-import { Moon, Sun, Palette, Waves, Sunset, Flower2, Zap, TreePine } from "lucide-react";
+import { Moon, Sun, Waves } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect, useState } from "react";
 import {
@@ -12,10 +12,6 @@ const themes = [
   { id: "light", name: "Light", icon: Sun, color: "hsl(145, 60%, 45%)" },
   { id: "dark", name: "Dark", icon: Moon, color: "hsl(145, 70%, 50%)" },
   { id: "ocean", name: "Ocean", icon: Waves, color: "hsl(190, 80%, 50%)" },
-  { id: "sunset", name: "Sunset", icon: Sunset, color: "hsl(25, 90%, 55%)" },
-  { id: "lavender", name: "Lavender", icon: Flower2, color: "hsl(280, 70%, 60%)" },
-  { id: "cyberpunk", name: "Cyberpunk", icon: Zap, color: "hsl(320, 100%, 55%)" },
-  { id: "forest", name: "Forest", icon: TreePine, color: "hsl(100, 60%, 45%)" },
 ];
 
 export const ThemeToggle = () => {

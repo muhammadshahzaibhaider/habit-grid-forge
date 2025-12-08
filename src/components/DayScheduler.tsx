@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Clock, Pencil } from "lucide-react";
+import { Plus, Trash2, Clock, Pencil, GripVertical } from "lucide-react";
 
 export interface ScheduleEvent {
   id: number;
@@ -43,6 +43,9 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [draggedEvent, setDraggedEvent] = useState<ScheduleEvent | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
     setFormData({ title: "", startTime: "09:00", endTime: "10:00", color: EVENT_COLORS[0].value });
@@ -69,7 +72,6 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
   const saveEvent = () => {
     if (formData.title && formData.startTime && formData.endTime) {
       if (editingEventId !== null) {
-        // Update existing event
         const updatedEvents = events.map((e) =>
           e.id === editingEventId
             ? { ...e, title: formData.title!, startTime: formData.startTime!, endTime: formData.endTime!, color: formData.color || EVENT_COLORS[0].value }
@@ -77,7 +79,6 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
         ).sort((a, b) => a.startTime.localeCompare(b.startTime));
         onEventsChange(updatedEvents);
       } else {
-        // Add new event
         const event: ScheduleEvent = {
           id: Date.now(),
           title: formData.title,
@@ -105,9 +106,101 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
   const getEventPosition = (startTime: string, endTime: string) => {
     const [startHour, startMin] = startTime.split(":").map(Number);
     const [endHour, endMin] = endTime.split(":").map(Number);
-    const top = (startHour + startMin / 60) * 48; // 48px per hour
+    const top = (startHour + startMin / 60) * 48;
     const height = ((endHour - startHour) + (endMin - startMin) / 60) * 48;
     return { top, height: Math.max(height, 24) };
+  };
+
+  const getTimeFromY = (y: number): string => {
+    const totalMinutes = Math.round((y / 48) * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.round((totalMinutes % 60) / 15) * 15;
+    const clampedHours = Math.max(0, Math.min(23, hours));
+    const clampedMinutes = minutes >= 60 ? 0 : minutes;
+    return `${clampedHours.toString().padStart(2, "0")}:${clampedMinutes.toString().padStart(2, "0")}`;
+  };
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, event: ScheduleEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const { top } = getEventPosition(event.startTime, event.endTime);
+    const clickY = clientY - rect.top + (timelineRef.current?.scrollTop || 0);
+    setDragOffset(clickY - top);
+    setDraggedEvent(event);
+  }, []);
+
+  const handleDragMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!draggedEvent || !timelineRef.current) return;
+    
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const scrollTop = timelineRef.current.scrollTop;
+    const y = clientY - rect.top + scrollTop - dragOffset;
+    
+    const newStartTime = getTimeFromY(y);
+    const [startHour, startMin] = draggedEvent.startTime.split(":").map(Number);
+    const [endHour, endMin] = draggedEvent.endTime.split(":").map(Number);
+    const duration = (endHour - startHour) * 60 + (endMin - startMin);
+    
+    const [newStartHour, newStartMin] = newStartTime.split(":").map(Number);
+    const newEndMinutes = newStartHour * 60 + newStartMin + duration;
+    const newEndHour = Math.floor(newEndMinutes / 60);
+    const newEndMin = newEndMinutes % 60;
+    
+    if (newEndHour <= 23) {
+      const newEndTime = `${newEndHour.toString().padStart(2, "0")}:${newEndMin.toString().padStart(2, "0")}`;
+      
+      const updatedEvents = events.map((e) =>
+        e.id === draggedEvent.id
+          ? { ...e, startTime: newStartTime, endTime: newEndTime }
+          : e
+      );
+      onEventsChange(updatedEvents);
+      setDraggedEvent({ ...draggedEvent, startTime: newStartTime, endTime: newEndTime });
+    }
+  }, [draggedEvent, dragOffset, events, onEventsChange]);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggedEvent) {
+      const sortedEvents = [...events].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      onEventsChange(sortedEvents);
+    }
+    setDraggedEvent(null);
+    setDragOffset(0);
+  }, [draggedEvent, events, onEventsChange]);
+
+  // Add event listeners for drag
+  const handleMouseDown = (e: React.MouseEvent, event: ScheduleEvent) => {
+    handleDragStart(e, event);
+    
+    const handleMouseMove = (e: MouseEvent) => handleDragMove(e);
+    const handleMouseUp = () => {
+      handleDragEnd();
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+    
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, event: ScheduleEvent) => {
+    handleDragStart(e, event);
+    
+    const handleTouchMove = (e: TouchEvent) => handleDragMove(e);
+    const handleTouchEnd = () => {
+      handleDragEnd();
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+    
+    document.addEventListener("touchmove", handleTouchMove);
+    document.addEventListener("touchend", handleTouchEnd);
   };
 
   return (
@@ -122,8 +215,11 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
 
         <div className="flex gap-4 flex-1 overflow-hidden">
           {/* Timeline View */}
-          <div className="flex-1 border border-border rounded-md overflow-y-auto relative">
-            <div className="relative" style={{ height: "1152px" }}> {/* 24 hours * 48px */}
+          <div 
+            ref={timelineRef}
+            className="flex-1 border border-border rounded-md overflow-y-auto relative select-none"
+          >
+            <div className="relative" style={{ height: "1152px" }}>
               {/* Hour lines */}
               {HOURS.map((hour, i) => (
                 <div key={hour} className="absolute w-full border-t border-border/50 flex" style={{ top: `${i * 48}px` }}>
@@ -134,15 +230,34 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
               {/* Events */}
               {events.map((event) => {
                 const { top, height } = getEventPosition(event.startTime, event.endTime);
+                const isDragging = draggedEvent?.id === event.id;
+                
                 return (
                   <div
                     key={event.id}
-                    className={`absolute left-12 right-2 rounded px-2 py-1 text-xs overflow-hidden group cursor-pointer transition-opacity ${editingEventId === event.id ? "ring-2 ring-foreground" : ""}`}
-                    style={{ top: `${top}px`, height: `${height}px`, backgroundColor: event.color }}
-                    onClick={() => startEditingEvent(event)}
+                    className={`absolute left-12 right-2 rounded px-2 py-1 text-xs overflow-hidden group transition-shadow ${
+                      editingEventId === event.id ? "ring-2 ring-foreground" : ""
+                    } ${isDragging ? "shadow-lg z-50 cursor-grabbing" : "cursor-grab"}`}
+                    style={{ 
+                      top: `${top}px`, 
+                      height: `${height}px`, 
+                      backgroundColor: event.color,
+                      opacity: isDragging ? 0.9 : 1,
+                    }}
                   >
-                    <div className="font-semibold truncate">{event.title}</div>
-                    <div className="text-[10px] opacity-80">{event.startTime} - {event.endTime}</div>
+                    <div className="flex items-start gap-1">
+                      <div
+                        onMouseDown={(e) => handleMouseDown(e, event)}
+                        onTouchStart={(e) => handleTouchStart(e, event)}
+                        className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 hover:bg-foreground/10 rounded touch-none"
+                      >
+                        <GripVertical size={12} className="opacity-50" />
+                      </div>
+                      <div className="flex-1 min-w-0" onClick={() => startEditingEvent(event)}>
+                        <div className="font-semibold truncate">{event.title}</div>
+                        <div className="text-[10px] opacity-80">{event.startTime} - {event.endTime}</div>
+                      </div>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -221,6 +336,16 @@ export const DayScheduler = ({ isOpen, onClose, date, events, onEventsChange }: 
                 </div>
               </div>
             )}
+
+            {/* Drag Instructions */}
+            <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-md">
+              <p className="font-medium mb-1">💡 Tips:</p>
+              <ul className="space-y-0.5">
+                <li>• Drag events to reschedule</li>
+                <li>• Click to edit details</li>
+                <li>• Hover to delete</li>
+              </ul>
+            </div>
 
             {/* Event List */}
             <div className="space-y-2">
